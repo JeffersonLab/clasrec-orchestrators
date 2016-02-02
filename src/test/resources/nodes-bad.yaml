@@ -1,0 +1,5 @@
+---
+reconstruction:
+  - name: 10.2.3.1
+  - clara-services: /home/user/claraServices
+input-output:

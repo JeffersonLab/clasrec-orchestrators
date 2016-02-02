@@ -1,0 +1,346 @@
+package org.jlab.clas.std.orchestrators;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import org.jlab.clara.base.ClaraLang;
+import org.jlab.clara.base.DpeName;
+import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
+import org.jlab.coda.xmsg.core.xMsgUtil;
+import org.jlab.coda.xmsg.excp.xMsgAddressException;
+import org.yaml.snakeyaml.Yaml;
+
+import com.martiansoftware.jsap.FlaggedOption;
+import com.martiansoftware.jsap.JSAP;
+import com.martiansoftware.jsap.JSAPException;
+import com.martiansoftware.jsap.JSAPResult;
+
+/**
+ * Helper class to read configuration for the standard orchestrators.
+ * <p>
+ * Currently, the user can set:
+ * <ul>
+ * <li>The list of services in the reconstruction chain
+ * <li>The name of the container for the services
+ * <li>The list of I/O and reconstruction nodes
+ * <li>The list of input files
+ * </ul>
+ *
+ * The <i>reconstruction services</i> description is provided in a YAML file,
+ * which format is the following:
+ * <pre>
+ * container: my-default # Optional: change default container, otherwise it is $USER
+ * services:
+ *   - class: org.jlab.clas12.ana.serviceA
+ *     name: serviceA
+ *   - class: org.jlab.clas12.rec.serviceB
+ *     name: serviceB
+ *     container: containerB # Optional: change container for this service
+ * </pre>
+ * By default, all reconstruction and I/O services will be deployed in a
+ * container named as the {@code $USER} running the orchestrator. This can be
+ * changed by including a {@code container} key with the desired container name.
+ * The container can be overwritten for individual services too. There is no
+ * need to include I/O services in this file. They are controlled by the
+ * orchestrators.
+ * <p>
+ *
+ * The <i>nodes</i> description is also provided as a YAML file, with the
+ * following format:
+ * <pre>
+ * input-output:
+ *   - name: io-node
+ * reconstruction:
+ *   - name: rec-node-1
+ *     cores: 12
+ *   - name: rec-node-2
+ *     cores: 32
+ *   - name: rec-node-3
+ * </pre>
+ * Note that the {@code clara-services} and {@code cores} support is experimental.
+ *
+ * The <i>input files</i> description is just a simple text file with the list
+ * of all the input files, one per line:
+ * <pre>
+ * input-file1.ev
+ * input-file2.ev
+ * input-file3.ev
+ * input-file4.ev
+ * </pre>
+ */
+public class ReconstructionConfigParser {
+
+    private static final String DEFAULT_CONTAINER = System.getProperty("user.name");
+
+    private final Map<String, Object> config;
+
+
+    public ReconstructionConfigParser(String configFilePath) {
+        try (InputStream input = new FileInputStream(configFilePath)) {
+            Yaml yaml = new Yaml();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = (Map<String, Object>) yaml.load(input);
+            this.config = config;
+        } catch (IOException e) {
+            throw new OrchestratorConfigError(e);
+        }
+    }
+
+
+    public static String getDefaultContainer() {
+        return DEFAULT_CONTAINER;
+    }
+
+
+    public List<ServiceInfo> parseReconstructionChain() {
+        List<ServiceInfo> services = new ArrayList<ServiceInfo>();
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> sl = (List<Map<String, String>>) config.get("services");
+        if (sl == null) {
+            throw new OrchestratorConfigError("missing list of services");
+        }
+        String container = (String) config.get("container");
+        if (container == null) {
+            container = DEFAULT_CONTAINER;
+        }
+        for (Map<String, String> s : sl) {
+            String serviceName = s.get("name");
+            String serviceClass = s.get("class");
+            String serviceContainer = s.get("container");
+            if (serviceName == null || serviceClass == null) {
+                throw new OrchestratorConfigError("missing name or class of service");
+            }
+            if (serviceContainer == null) {
+                serviceContainer = container;
+            }
+            ServiceInfo service = new ServiceInfo(serviceClass, serviceContainer, serviceName);
+            if (services.contains(service)) {
+                String msg = String.format("duplicated service  name = '%s' container = '%s'",
+                                           serviceName, serviceContainer);
+                throw new OrchestratorConfigError(msg);
+            }
+            services.add(service);
+        }
+        return services;
+    }
+
+
+    public List<DpeInfo> parseReconstructionNodes() {
+        return parseNodes("reconstruction");
+    }
+
+
+    public List<DpeInfo> parseInputOutputNodes() {
+        return parseNodes("input-output");
+    }
+
+
+    private List<DpeInfo> parseNodes(String nodeType) {
+        List<DpeInfo> dpes = new ArrayList<DpeInfo>();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sl = (List<Map<String, Object>>) config.get(nodeType);
+        if (sl == null) {
+            throw new OrchestratorConfigError("missing list of " + nodeType + " nodes");
+        }
+        String defaultClaraServices = (String) config.get("clara-home");
+        if (defaultClaraServices == null) {
+            defaultClaraServices = DpeInfo.DEFAULT_CLARA_HOME;
+        }
+        for (Map<String, Object> s : sl) {
+            String dpeAddress = (String) s.get("name");
+            if (dpeAddress == null) {
+                throw new OrchestratorConfigError("missing name of " + nodeType + " node");
+            }
+            Integer dpeCores = (Integer) s.get("cores");
+            if (dpeCores == null) {
+                dpeCores = 0;
+            }
+            String claraServices = (String) s.get("clara-home");
+            if (claraServices == null) {
+                claraServices = defaultClaraServices;
+            }
+            try {
+                DpeName dpeName = new DpeName(hostAddress(dpeAddress), ClaraLang.JAVA);
+                dpes.add(new DpeInfo(dpeName, dpeCores, claraServices));
+            } catch (xMsgAddressException e) {
+                throw new OrchestratorConfigError("node name not known: " + dpeAddress);
+            }
+        }
+        return dpes;
+    }
+
+
+    public static DpeInfo getDefaultDpeInfo(String hostName) {
+        String dpeIp = hostAddress(hostName);
+        DpeName dpeName = new DpeName(dpeIp, ClaraLang.JAVA);
+        return new DpeInfo(dpeName, 0, DpeInfo.DEFAULT_CLARA_HOME);
+    }
+
+
+    public static String hostAddress(String host) {
+        try {
+            return xMsgUtil.toHostAddress(host);
+        } catch (IOException e) {
+            throw new OrchestratorConfigError("node name not known: " + host);
+        }
+    }
+
+
+    public String parseInputFile() {
+        String inputFile = (String) config.get("input-file");
+        if (inputFile == null) {
+            throw new OrchestratorConfigError("missing input file");
+        }
+        return inputFile;
+    }
+
+
+    public String parseOutputFile() {
+        String outputFile = (String) config.get("output-file");
+        if (outputFile == null) {
+            throw new OrchestratorConfigError("missing output file");
+        }
+        return outputFile;
+    }
+
+
+    public int parseNumberOfThreads() {
+        Integer nt = (Integer) config.get("threads");
+        if (nt == null) {
+            throw new OrchestratorConfigError("missing number of threads");
+        }
+        if (nt <= 0) {
+            String msg = String.format("bad number of threads: %d", nt);
+            throw new OrchestratorConfigError(msg);
+        }
+        return nt.intValue();
+    }
+
+
+    public String parseDirectory(String key) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dirsConfig = (Map<String, Object>) config.get("dirs");
+        if (dirsConfig == null) {
+            throw new OrchestratorConfigError("missing directories configuration");
+        }
+        String dir = (String) dirsConfig.get(key);
+        if (dir == null) {
+            throw new OrchestratorConfigError("missing directory path: " + key);
+        }
+        return dir;
+
+    }
+
+
+    public List<String> readInputFiles(String inputFilesList) {
+        List<String> files = new ArrayList<String>();
+        File file = new File(inputFilesList);
+        BufferedReader reader = null;
+        Pattern pattern = Pattern.compile("^\\s*#.*$");
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            while (true) {
+                String line = reader.readLine();
+                if (line == null) { // no more lines
+                    break;
+                }
+                line = line.trim();
+                if (line.length() == 0) { // empty line
+                    continue;
+                }
+                if (pattern.matcher(line).matches()) { // commented line
+                    continue;
+                }
+                files.add(line);
+            }
+        } catch (FileNotFoundException e) {
+            throw new OrchestratorConfigError(e);
+        } catch (IOException e) {
+            throw new OrchestratorConfigError("Could not read file " + inputFilesList);
+        } finally {
+            try {
+                if (reader != null) {
+                    reader.close();
+                }
+            } catch (IOException e) {
+                System.err.println("Could not close config file.");
+            }
+        }
+        return files;
+    }
+
+
+    public List<String> readInputFiles() {
+        @SuppressWarnings("unchecked")
+        List<String> files = (List<String>) config.get("files");
+        if (files == null) {
+            throw new OrchestratorConfigError("missing list of files");
+        }
+        return files;
+    }
+
+
+    public int parseProcessingTimes() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> runConfig = (Map<String, Object>) config.get("run");
+        if (runConfig == null) {
+            throw new OrchestratorConfigError("missing runtime configuration");
+        }
+        Integer times = (Integer) runConfig.get("times");
+        if (times == null) {
+            throw new OrchestratorConfigError("missing processing times number");
+        }
+        if (times <= 0) {
+            String msg = String.format("bad number of processing times: %d", times);
+            throw new OrchestratorConfigError(msg);
+        }
+        return times.intValue();
+    }
+
+
+
+    public static class ConfigFileChecker {
+        private final JSAP jsap;
+        private final JSAPResult config;
+
+        public ConfigFileChecker(String[] args) {
+            jsap = new JSAP();
+            setArguments(jsap);
+            config = jsap.parse(args);
+        }
+
+        public boolean hasFile() {
+            return config.success();
+        }
+
+        public String getFile() {
+            return config.getString(ARG_CONFIG_FILE);
+        }
+
+        private static final String ARG_CONFIG_FILE = "full_config";
+
+        private void setArguments(JSAP jsap) {
+
+            FlaggedOption configFileArg = new FlaggedOption(ARG_CONFIG_FILE)
+                    .setStringParser(JSAP.STRING_PARSER)
+                    .setRequired(true)
+                    .setShortFlag('f');
+            configFileArg.setHelp("The full configuration file");
+
+            try {
+                jsap.registerParameter(configFileArg);
+            } catch (JSAPException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}

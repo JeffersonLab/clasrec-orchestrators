@@ -1,0 +1,21 @@
+#!/bin/sh
+JVMOPTIONS=""
+CLASSPATH="$CLARA_HOME/lib/*:$CLARA_HOME/services/*"
+
+
+run_orchestrator()
+{
+    MAIN=org.jlab.clas.std.orchestrators.CloudOrchestrator
+
+    java $JVMOPTIONS -cp $CLASSPATH $MAIN "$@"
+}
+
+usage()
+{
+    cat << EOF
+usage: $(basename $0) <args>
+EOF
+}
+
+
+run_orchestrator "$@"

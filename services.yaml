@@ -1,0 +1,4 @@
+---
+services:
+- name: ECReconstruction
+  class: org.jlab.clas12.ec.services.ECReconstruction
