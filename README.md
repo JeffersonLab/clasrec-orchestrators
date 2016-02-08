@@ -20,3 +20,24 @@ file.
 
 <a href="https://asciinema.org/a/35935" target="_blank"><img src="https://asciinema.org/a/35935.png" width="600"/></a>
 
+## Cloud orchestrator
+
+The `CloudOrchestrator` starts an orchestrator that will process a list
+of input files for reconstruction on a set of worker nodes. It will wait for
+DPEs to be started on the nodes and it will use them as soon as they are
+alive.
+
+For each DPE, the orchestrator will first deploy and link the standard I/O
+services and the user reconstruction services. Then it will configure the I/O
+services to process one of the input files. Finally, it will request to start
+the reconstruction of the file using all cores in the node.
+
+Each new DPE will be used for I/O and reconstruction (i.e. each node will be
+in charge of reconstructing its own single file). When a DPE finishes a file,
+the orchestrator will use it to process the next file in the list.
+
+The orchestrator will exit after all files have been reconstructed.
+
+<a href="https://asciinema.org/a/36154" target="_blank"><img src="https://asciinema.org/a/36154.png" width="600"/></a>
+
+<img src="http://i.imgur.com/n3HYCPd.png" width="600"/>
