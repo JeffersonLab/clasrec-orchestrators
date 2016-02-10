@@ -239,9 +239,8 @@ class ReconstructionOrchestrator {
 
     Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
         try {
-            String host = dpe.name.address().host();
             String topic = CConstants.CONTAINER + ":" + dpe.name;
-            Set<xMsgRegistration> regData = findSubscribers(host, topic);
+            Set<xMsgRegistration> regData = findSubscribers(feHost, topic);
             Set<ContainerName> regContainers = new HashSet<>();
             for (xMsgRegistration x : regData) {
                 regContainers.add(new ContainerName(x.getName()));
@@ -255,8 +254,7 @@ class ReconstructionOrchestrator {
 
     Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
         try {
-            String host = dpe.name.address().host();
-            Set<xMsgRegistration> regData = findSubscribers(host, dpe.name.canonicalName());
+            Set<xMsgRegistration> regData = findSubscribers(feHost, dpe.name.canonicalName());
             Set<ServiceName> regServices = new HashSet<>();
             for (xMsgRegistration x : regData) {
                 regServices.add(new ServiceName(x.getName()));
