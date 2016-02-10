@@ -79,7 +79,7 @@ class ReconstructionNode {
         JPropertyList inputConfig = new JPropertyList();
         inputConfig.addHeadProperty("action", "open");
         inputConfig.addTailProperty("file", currentInputFile);
-        configFile(readerName, inputConfig, 30);
+        syncConfig(readerName, inputConfig, 30);
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
@@ -90,7 +90,7 @@ class ReconstructionNode {
         outputConfig.addTailProperty("file", currentOutputFile);
         outputConfig.addTailProperty("order", fileOrder);
         outputConfig.addTailProperty("overwrite", "true");
-        configFile(writerName, outputConfig, 30);
+        syncConfig(writerName, outputConfig, 30);
 
         // set "report done" frequency
         if (frequency <= 0) {
@@ -108,12 +108,12 @@ class ReconstructionNode {
         JPropertyList plr = new JPropertyList();
         plr.addHeadProperty("action", "close");
         plr.addTailProperty("file", currentInputFile);
-        configFile(readerName, plr, 30);
+        syncConfig(readerName, plr, 30);
 
         JPropertyList plw = new JPropertyList();
         plw.addHeadProperty("action", "close");
         plw.addTailProperty("file", currentOutputFile);
-        configFile(writerName, plr, 30);
+        syncConfig(writerName, plr, 30);
     }
 
 
@@ -201,7 +201,7 @@ class ReconstructionNode {
     }
 
 
-    private void configFile(ServiceName serviceName, JPropertyList data, int timeout) {
+    private void syncConfig(ServiceName serviceName, JPropertyList data, int timeout) {
         try {
             EngineData input = new EngineData();
             input.setData(MimeType.PROPERTY_LIST.type(), data);
