@@ -13,6 +13,7 @@ import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
+import org.jlab.clara.util.CConstants;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas12.tools.MimeType;
 import org.jlab.clas12.tools.property.JPropertyList;
@@ -55,10 +56,82 @@ class ReconstructionNode {
     }
 
 
+    void setPaths(String inputPath, String outputPath, String stagePath) {
+        JPropertyList pl = new JPropertyList();
+        pl.addTailProperty("input_path", inputPath);
+        pl.addTailProperty("output_path", outputPath);
+        pl.addTailProperty("stage_path", stagePath);
+        syncConfig(stageName, pl, 120);
+    }
+
+
+    boolean setFiles(String inputFileName) {
+        try {
+            currentInputFileName = inputFileName;
+            currentInputFile = CConstants.UNDEFINED;
+            currentOutputFile = CConstants.UNDEFINED;
+
+            JPropertyList pl = new JPropertyList();
+            pl.addHeadProperty("action", "stage_input");
+            pl.addTailProperty("file", currentInputFileName);
+
+            Logging.info("Staging file %s in %s%n", currentInputFileName, dpe.name);
+            EngineData result = syncSend(stageName, pl, 300);
+
+            if (!result.getStatus().equals(EngineStatus.ERROR)) {
+                JPropertyList rl = (JPropertyList) result.getData();
+                currentInputFile = rl.getPropertyValue("input_file");
+                currentOutputFile = rl.getPropertyValue("output_file");
+                return true;
+            } else {
+                System.err.println(result.getDescription());
+                currentInputFileName = CConstants.UNDEFINED;
+                return false;
+            }
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not configure directories", e);
+        }
+
+    }
+
+
     void setFiles(String inputFile, String outputFile) {
         currentInputFile = inputFile;
         currentOutputFile = outputFile;
         currentInputFileName = new File(inputFile).getName();
+    }
+
+
+    boolean saveOutputFile() {
+        try {
+            JPropertyList plr = new JPropertyList();
+            plr.addHeadProperty("action", "remove_input");
+            plr.addTailProperty("file", currentInputFileName);
+            EngineData rr = syncSend(stageName, plr, 300);
+
+            JPropertyList pls = new JPropertyList();
+            pls.addHeadProperty("action", "save_output");
+            pls.addTailProperty("file", currentInputFileName);
+            EngineData rs = syncSend(stageName, pls, 300);
+
+            currentInputFileName = CConstants.UNDEFINED;
+            currentInputFile = CConstants.UNDEFINED;
+            currentOutputFile = CConstants.UNDEFINED;
+
+            boolean status = true;
+            if (rr.getStatus().equals(EngineStatus.ERROR)) {
+                System.err.println(rr.getDescription());
+                status = false;
+            }
+            if (rs.getStatus().equals(EngineStatus.ERROR)) {
+                status = false;
+                System.err.println(rs.getDescription());
+            }
+
+            return status;
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not configure directories", e);
+        }
     }
 
 
@@ -209,6 +282,14 @@ class ReconstructionNode {
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
         input.setData(EngineDataType.STRING.mimeType(), data);
+        return syncSend(serviceName, input, timeout);
+    }
+
+
+    private EngineData syncSend(ServiceName serviceName, JPropertyList data, int timeout)
+            throws ClaraException, TimeoutException {
+        EngineData input = new EngineData();
+        input.setData(MimeType.PROPERTY_LIST.type(), data);
         return syncSend(serviceName, input, timeout);
     }
 
