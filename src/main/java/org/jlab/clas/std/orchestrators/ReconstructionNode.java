@@ -119,8 +119,7 @@ class ReconstructionNode {
 
     private String requestFileOrder() {
         try {
-            EngineData input = generateRequest("order");
-            EngineData output = syncSend(readerName, input, 30);
+            EngineData output = syncSend(readerName, "order", 30);
             return (String) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get input file order", e);
@@ -130,8 +129,7 @@ class ReconstructionNode {
 
     private int requestNumberOfEvents() {
         try {
-            EngineData input = generateRequest("count");
-            EngineData output = syncSend(readerName, input, 30);
+            EngineData output = syncSend(readerName, "count", 30);
             return (Integer) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get number of input events", e);
@@ -183,13 +181,6 @@ class ReconstructionNode {
     }
 
 
-    private EngineData generateRequest(String request) {
-        EngineData data = new EngineData();
-        data.setData(EngineDataType.STRING.mimeType(), request);
-        return data;
-    }
-
-
     private Composition generateComposition(List<ServiceName> chain) {
         String composition = readerName.canonicalName();
         for (ServiceName service : chain) {
@@ -211,6 +202,14 @@ class ReconstructionNode {
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not configure service = " + serviceName, e);
         }
+    }
+
+
+    private EngineData syncSend(ServiceName serviceName, String data, int timeout)
+            throws ClaraException, TimeoutException {
+        EngineData input = new EngineData();
+        input.setData(EngineDataType.STRING.mimeType(), data);
+        return syncSend(serviceName, input, timeout);
     }
 
 
