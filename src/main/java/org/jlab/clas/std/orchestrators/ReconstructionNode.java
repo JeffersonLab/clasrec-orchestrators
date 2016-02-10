@@ -117,19 +117,6 @@ class ReconstructionNode {
     }
 
 
-    private void configFile(ServiceName serviceName, JPropertyList data, int timeout) {
-        try {
-            EngineData input = new EngineData();
-            input.setData(MimeType.PROPERTY_LIST.type(), data);
-            orchestrator.base.configure(serviceName)
-                             .withData(input)
-                             .syncRun(timeout, TimeUnit.SECONDS);
-        } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not configure service = " + serviceName, e);
-        }
-    }
-
-
     private String requestFileOrder() {
         try {
             EngineData input = generateRequest("order");
@@ -211,6 +198,19 @@ class ReconstructionNode {
         composition += "+" + writerName.canonicalName();
         composition += "+" + readerName.canonicalName();
         return new Composition(composition);
+    }
+
+
+    private void configFile(ServiceName serviceName, JPropertyList data, int timeout) {
+        try {
+            EngineData input = new EngineData();
+            input.setData(MimeType.PROPERTY_LIST.type(), data);
+            orchestrator.base.configure(serviceName)
+                             .withData(input)
+                             .syncRun(timeout, TimeUnit.SECONDS);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not configure service = " + serviceName, e);
+        }
     }
 
 
