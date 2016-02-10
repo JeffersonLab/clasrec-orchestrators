@@ -2,3 +2,5 @@
 services:
 - name: ECReconstruction
   class: org.jlab.clas12.ec.services.ECReconstruction
+- name: BigFactorial
+  class: org.jlab.clas.std.services.util.BigFactorial
