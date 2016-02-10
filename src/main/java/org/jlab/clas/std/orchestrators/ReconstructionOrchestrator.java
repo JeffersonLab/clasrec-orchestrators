@@ -15,6 +15,7 @@ import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jlab.clara.base.BaseOrchestrator;
+import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.ClaraName;
 import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.DpeName;
@@ -43,6 +44,7 @@ import org.zeromq.ZMsg;
 class ReconstructionOrchestrator {
 
     final BaseOrchestrator base;
+    final String feHost;
 
     private ServiceInfo stage;
     private ServiceInfo reader;
@@ -55,7 +57,12 @@ class ReconstructionOrchestrator {
     private final ZContext context = new ZContext();
 
     ReconstructionOrchestrator() throws ClaraException, IOException {
-        base = new BaseOrchestrator();
+        this(ReconstructionConfigParser.hostAddress("localhost"), 2);
+    }
+
+    ReconstructionOrchestrator(String frontEnd, int poolSize) throws ClaraException, IOException {
+        base = new BaseOrchestrator(new DpeName(frontEnd, ClaraLang.JAVA), poolSize);
+        feHost = frontEnd;
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
         setInputOutputServices();
