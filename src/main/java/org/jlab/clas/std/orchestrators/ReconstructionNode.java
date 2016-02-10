@@ -24,6 +24,7 @@ class ReconstructionNode {
 
     final DpeInfo dpe;
     final ContainerName containerName;
+    final ServiceName stageName;
     final ServiceName readerName;
     final ServiceName writerName;
 
@@ -48,6 +49,7 @@ class ReconstructionNode {
 
         this.containerName = new ContainerName(dpe.name,
                                                ReconstructionConfigParser.getDefaultContainer());
+        this.stageName = orchestrator.getStageServiceName(dpe);
         this.readerName = orchestrator.getReaderServiceName(dpe);
         this.writerName = orchestrator.getWriterServiceName(dpe);
     }

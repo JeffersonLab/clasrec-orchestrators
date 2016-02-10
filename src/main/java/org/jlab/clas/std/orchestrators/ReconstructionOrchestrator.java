@@ -44,6 +44,7 @@ class ReconstructionOrchestrator {
 
     final BaseOrchestrator base;
 
+    private ServiceInfo stage;
     private ServiceInfo reader;
     private ServiceInfo writer;
 
@@ -79,6 +80,10 @@ class ReconstructionOrchestrator {
 
 
     private void setInputOutputServices() {
+        String stageClass = "org.jlab.clas.std.services.system.DataManager";
+        String stageContainer = ReconstructionConfigParser.getDefaultContainer();
+        String stageName = "DataManager";
+
         String readerClass = "org.jlab.clas.std.services.convertors.EvioToEvioReader";
         String readerContainer = ReconstructionConfigParser.getDefaultContainer();
         String readerName = "EvioToEvioReader";
@@ -87,6 +92,7 @@ class ReconstructionOrchestrator {
         String writerContainer = ReconstructionConfigParser.getDefaultContainer();
         String writerName = "EvioToEvioWriter";
 
+        stage = new ServiceInfo(stageClass, stageContainer, stageName);
         reader = new ServiceInfo(readerClass, readerContainer, readerName);
         writer = new ServiceInfo(writerClass, writerContainer, writerName);
     }
@@ -167,6 +173,7 @@ class ReconstructionOrchestrator {
 
 
     void deployInputOutputServices(DpeInfo dpe, int poolsize) {
+        deploy(stage, dpe, poolsize);
         deploy(reader, dpe, poolsize);
         deploy(writer, dpe, poolsize);
     }
@@ -195,6 +202,11 @@ class ReconstructionOrchestrator {
         for (ServiceInfo service : reconstructionChain) {
             registerContainer(service, dpe);
         }
+    }
+
+
+    ServiceName getStageServiceName(DpeInfo ioDpe) {
+        return getServiceName(ioDpe, stage);
     }
 
 
@@ -336,8 +348,10 @@ class ReconstructionOrchestrator {
 
 
     void checkInputOutputServices(DpeInfo dpe) {
-        List<ServiceName> services = Arrays.asList(getServiceName(dpe, reader),
-                                                   getServiceName(dpe, writer));
+        List<ServiceName> services = Arrays.asList(
+                getServiceName(dpe, stage),
+                getServiceName(dpe, reader),
+                getServiceName(dpe, writer));
         checkServices(dpe, services);
     }
 
