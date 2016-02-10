@@ -105,16 +105,15 @@ class ReconstructionNode {
 
 
     void closeFiles() {
-        configFile(readerName, currentInputFile,  "close", 30);
-        configFile(writerName, currentOutputFile, "close", 30);
-    }
+        JPropertyList plr = new JPropertyList();
+        plr.addHeadProperty("action", "close");
+        plr.addTailProperty("file", currentInputFile);
+        configFile(readerName, plr, 30);
 
-
-    private void configFile(ServiceName serviceName, String fileName, String action, int timeout) {
-        JPropertyList pl = new JPropertyList();
-        pl.addHeadProperty("action", action);
-        pl.addTailProperty("file", fileName);
-        configFile(serviceName, pl, timeout);
+        JPropertyList plw = new JPropertyList();
+        plw.addHeadProperty("action", "close");
+        plw.addTailProperty("file", currentOutputFile);
+        configFile(writerName, plr, 30);
     }
 
 
