@@ -29,7 +29,7 @@ import com.martiansoftware.jsap.UnflaggedOption;
  * <p>
  * This orchestrator is called by the {@code local-orchestrator} script.
  */
-public class LocalOrchestrator {
+public final class LocalOrchestrator {
 
     private final ReconstructionOrchestrator orchestrator;
     private final ReconstructionNode ioNode;
@@ -73,24 +73,11 @@ public class LocalOrchestrator {
         }
     }
 
-
-    public static class ReconstructionSetup {
+    private static class ReconstructionSetup {
 
         final List<DpeInfo> ioNodes;
         final List<DpeInfo> recNodes;
         final List<ServiceInfo> recChain;
-
-        public ReconstructionSetup(String servicesFile) {
-            ioNodes = new ArrayList<DpeInfo>();
-            ioNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
-
-            /* Check that all the node names are valid */
-            recNodes = new ArrayList<DpeInfo>();
-            recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
-
-            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
-            recChain = parser.parseReconstructionChain();
-        }
 
         ReconstructionSetup(List<ServiceInfo> recChain,
                             List<DpeInfo> ioNodes,
@@ -102,29 +89,26 @@ public class LocalOrchestrator {
     }
 
 
-    public static class ReconstructionPaths {
+    private static class ReconstructionPaths {
 
         final String inputFile;
         final String outputFile;
 
-        public ReconstructionPaths(String inFile, String outFile) {
+        ReconstructionPaths(String inFile, String outFile) {
             inputFile = inFile;
             outputFile = outFile;
         }
     }
 
 
-    public static class ReconstructionOptions {
+    private static class ReconstructionOptions {
 
         final int threads;
-        int reportFreq = 1000;
+        final int reportFreq;
 
-        public ReconstructionOptions(int numThreads) {
+        ReconstructionOptions(int numThreads, int reportFreq) {
             this.threads = numThreads;
-        }
-
-        public void setReportFrequency(int frequency) {
-            this.reportFreq = frequency;
+            this.reportFreq = reportFreq;
         }
     }
 
@@ -141,17 +125,9 @@ public class LocalOrchestrator {
     }
 
 
-
-    /**
-     * Creates an orchestrator to reconstruct events on the local box.
-     *
-     * @param setup the description of IO and reconstruction nodes
-     * @param paths the location of the input and output files
-     * @param opts the reconstruction options
-     */
-    public LocalOrchestrator(ReconstructionSetup setup,
-                             ReconstructionPaths paths,
-                             ReconstructionOptions opts) {
+    private LocalOrchestrator(ReconstructionSetup setup,
+                              ReconstructionPaths paths,
+                              ReconstructionOptions opts) {
         try {
             this.orchestrator = new ReconstructionOrchestrator();
             orchestrator.setReconstructionChain(setup.recChain);
@@ -402,9 +378,15 @@ public class LocalOrchestrator {
             final String outFile = config.getString(ARG_OUTPUT_FILE);
             final int nc = config.getInt(ARG_THREADS);
 
-            ReconstructionSetup setup = new ReconstructionSetup(servicesConfig);
+            List<DpeInfo> ioNodes = new ArrayList<DpeInfo>();
+            ioNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
+
+            List<DpeInfo> recNodes = new ArrayList<DpeInfo>();
+            recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
+
+            ReconstructionSetup setup = new ReconstructionSetup(servicesConfig, ioNodes, recNodes);
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
-            ReconstructionOptions opts = new ReconstructionOptions(nc);
+            ReconstructionOptions opts = new ReconstructionOptions(nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);
         }
 
@@ -470,7 +452,7 @@ public class LocalOrchestrator {
 
             ReconstructionSetup setup = new ReconstructionSetup(recChain, ioNodes, recNodes);
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
-            ReconstructionOptions opts = new ReconstructionOptions(nc);
+            ReconstructionOptions opts = new ReconstructionOptions(nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);
         }
     }
