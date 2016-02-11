@@ -378,7 +378,7 @@ public class LocalOrchestrator {
         private final JSAP jsap;
         private final JSAPResult config;
 
-        public CommandLineBuilder(String[] args) {
+        CommandLineBuilder(String[] args) {
             jsap = new JSAP();
             setArguments(jsap);
             config = jsap.parse(args);
@@ -449,7 +449,7 @@ public class LocalOrchestrator {
 
         private final String configFile;
 
-        public ConfigFileBuilder(String configFile) {
+        ConfigFileBuilder(String configFile) {
             this.configFile = configFile;
         }
 
