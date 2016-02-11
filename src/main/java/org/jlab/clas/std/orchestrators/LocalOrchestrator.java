@@ -1,10 +1,13 @@
 package org.jlab.clas.std.orchestrators;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 import org.jlab.clara.base.error.ClaraException;
@@ -72,6 +75,104 @@ public final class LocalOrchestrator {
             System.exit(1);
         }
     }
+
+
+    /**
+     * Helps constructing a {@link LocalOrchestrator} with all default and
+     * required parameters.
+     */
+    public static final class Builder {
+
+        private final List<ServiceInfo> recChain;
+        private final List<DpeInfo> ioNodes;
+        private final List<DpeInfo> recNodes;
+
+        private String inputFile;
+        private String outputFile;
+
+        private int threads = 1;
+        private int reportFreq = 1000;
+
+        /**
+         * Sets the required arguments to start a reconstruction.
+         *
+         * @param servicesFile the YAML file describing the reconstruction chain
+         * @param inputFile the file to be processed
+         * @throws OrchestratorConfigError if the reconstruction chain could not be parsed
+         */
+        public Builder(String servicesFile, String inputFile) {
+            Objects.requireNonNull(servicesFile, "servicesFile parameter is null");
+            Objects.requireNonNull(inputFile, "inputFile parameter is null");
+            if (inputFile.isEmpty()) {
+                throw new IllegalArgumentException("inputFile parameter is empty");
+            }
+
+            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+            this.recChain = parser.parseReconstructionChain();
+
+            this.ioNodes = new ArrayList<DpeInfo>();
+            this.ioNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
+
+            this.recNodes = new ArrayList<DpeInfo>();
+            this.recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
+
+            this.inputFile = inputFile;
+
+            Path inputFilePath = Paths.get(inputFile);
+            Path inputDirectory = inputFilePath.getParent();
+            String outputFileName = "out_" + inputFilePath.getFileName();
+            if (inputDirectory != null) {
+                this.outputFile = Paths.get(inputDirectory.toString(), outputFileName).toString();
+            } else {
+                this.outputFile = Paths.get(outputFileName).toString();
+            }
+        }
+
+        /**
+         * Sets the path to the reconstructed output file.
+         */
+        public Builder withOutputFile(String outputFile) {
+            Objects.requireNonNull(outputFile, "outputFile parameter is null");
+            if (outputFile.isEmpty()) {
+                throw new IllegalArgumentException("outputFile parameter is empty");
+            }
+            this.outputFile = outputFile;
+            return this;
+        }
+
+        /**
+         * Sets the number of threads to be used for reconstruction.
+         */
+        public Builder withThreads(int numThreads) {
+            if (numThreads <= 0) {
+                throw new IllegalArgumentException("Invalid number of threads: " + numThreads);
+            }
+            this.threads = numThreads;
+            return this;
+        }
+
+        /**
+         * Sets the frequency of the "done" reports by the standard writer.
+         */
+        public Builder withReportFrequency(int frequency) {
+            if (frequency <= 0) {
+                throw new IllegalArgumentException("Invalid number of threads: " + frequency);
+            }
+            this.reportFreq = frequency;
+            return this;
+        }
+
+        /**
+         * Creates the orchestrator.
+         */
+        public LocalOrchestrator build() {
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, ioNodes, recNodes);
+            ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
+            ReconstructionOptions opts = new ReconstructionOptions(threads, reportFreq);
+            return new LocalOrchestrator(setup, paths, opts);
+        }
+    }
+
 
     private static class ReconstructionSetup {
 
@@ -146,6 +247,12 @@ public final class LocalOrchestrator {
     }
 
 
+    /**
+     * Runs the reconstruction.
+     *
+     * @return status of the reconstruction.
+     * @throws OrchestratorError in case of any error that aborted the reconstruction
+     */
     public boolean run() {
         try {
             stats.totalTimeStart = System.currentTimeMillis();
@@ -384,10 +491,8 @@ public final class LocalOrchestrator {
             List<DpeInfo> recNodes = new ArrayList<DpeInfo>();
             recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
 
-            ReconstructionSetup setup = new ReconstructionSetup(servicesConfig, ioNodes, recNodes);
-            ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
-            ReconstructionOptions opts = new ReconstructionOptions(nc, 1000);
-            return new LocalOrchestrator(setup, paths, opts);
+            Builder builder = new Builder(servicesConfig, inFile);
+            return builder.withOutputFile(outFile).withThreads(nc).build();
         }
 
         private void setArguments(JSAP jsap) {
