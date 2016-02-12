@@ -18,7 +18,7 @@ The average reconstruction time per event will be printed in the standard
 output, and the reconstructed events will be saved in the specified output
 file.
 
-<a href="https://asciinema.org/a/35935" target="_blank"><img src="https://asciinema.org/a/35935.png" width="600"/></a>
+<a href="https://asciinema.org/a/36325" target="_blank"><img src="https://asciinema.org/a/36325.png" width="600"/></a>
 
 ## Cloud orchestrator
 
