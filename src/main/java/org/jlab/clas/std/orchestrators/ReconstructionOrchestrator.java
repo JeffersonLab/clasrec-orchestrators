@@ -158,7 +158,7 @@ class ReconstructionOrchestrator {
         ContainerName container = new ContainerName(dpe.name, containerName);
         base.deploy(container).run();
 
-        final int maxAttempts = 5;
+        final int maxAttempts = 10;
         int counter = 0;
         while (true) {
             Set<ContainerName> regContainers = getRegisteredContainers(dpe);
@@ -168,7 +168,7 @@ class ReconstructionOrchestrator {
                 }
             }
             counter++;
-            if (counter == 2) {
+            if (counter == 6) {
                 base.deploy(container).run();
             }
             if (counter == maxAttempts) {
