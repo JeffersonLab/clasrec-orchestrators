@@ -499,6 +499,16 @@ public final class CloudOrchestrator {
             orchestrator.checkReconstructionServices(node.dpe);
             orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));
             Logging.info("All services deployed on " + node.dpe.name);
+
+            // TODO send proper configuration data
+            EngineData configData = new EngineData();
+            configData.setData(EngineDataType.STRING.mimeType(), "config");
+            List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
+            for (ServiceName recService : recChain) {
+                node.configureService(recService, configData);
+            }
+            Logging.info("All services configured on " + node.dpe.name);
+
             freeNodes.add(node);
         } catch (OrchestratorError e) {
             Logging.error("Could not use %s for reconstruction%n%s",
@@ -557,20 +567,13 @@ public final class CloudOrchestrator {
     private void processFile(ReconstructionNode node, String inputFile) {
         stats.startClock();
         DpeInfo dpe = node.dpe;
-        List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
 
         // TODO check DPE is alive
         node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
         node.setFiles(inputFile);
         node.openFiles();
 
-        // TODO send proper configuration data
-        EngineData configData = new EngineData();
-        configData.setData(EngineDataType.STRING.mimeType(), node.currentInputFile);
-        for (ServiceName recService : recChain) {
-            node.configureService(recService, configData);
-        }
-
+        List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
         int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
         node.sendEventsToDpe(dpe.name, recChain, threads);
     }
