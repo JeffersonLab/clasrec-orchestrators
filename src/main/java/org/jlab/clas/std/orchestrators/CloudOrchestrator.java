@@ -69,7 +69,7 @@ public final class CloudOrchestrator {
             } else {
                 CommandLineBuilder cl = new CommandLineBuilder(args);
                 if (!cl.success()) {
-                    System.err.printf("Usage:%n%n  farm-orchestrator %s%n%n%n", cl.usage());
+                    System.err.printf("Usage:%n%n  cloud-orchestrator %s%n%n%n", cl.usage());
                     System.err.print(cl.help());
                     System.exit(1);
                 }
