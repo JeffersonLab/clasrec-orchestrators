@@ -130,7 +130,7 @@ class ReconstructionNode {
 
             return status;
         } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not configure directories", e);
+            throw new OrchestratorError("Could not save output", e);
         }
     }
 

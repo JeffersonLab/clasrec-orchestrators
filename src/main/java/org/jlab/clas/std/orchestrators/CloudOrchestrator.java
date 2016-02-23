@@ -569,7 +569,10 @@ public final class CloudOrchestrator {
 
 
     private void processFinishedFile(ReconstructionNode node) {
+        String currentFile = node.currentInputFileName;
         node.closeFiles();
+        node.saveOutputFile();
+        Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
         int counter = processedFilesCounter.incrementAndGet();
         if (counter == paths.inputFiles.size()) {
             stats.stopClock();
