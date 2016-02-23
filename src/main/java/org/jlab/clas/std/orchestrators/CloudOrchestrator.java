@@ -601,7 +601,7 @@ public final class CloudOrchestrator {
             }
         }
 
-        private synchronized void handleError(EngineData data) {
+        private void handleError(EngineData data) {
             ServiceName source = new ServiceName(data.getEngineName());
             DpeName host = source.dpe();
             int requestId = data.getCommunicationId();
