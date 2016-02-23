@@ -500,6 +500,7 @@ public final class CloudOrchestrator {
             orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));
             Logging.info("All services deployed on " + node.dpe.name);
 
+            node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             // TODO send proper configuration data
             EngineData configData = new EngineData();
             configData.setData(EngineDataType.STRING.mimeType(), "config");
@@ -569,7 +570,6 @@ public final class CloudOrchestrator {
         DpeInfo dpe = node.dpe;
 
         // TODO check DPE is alive
-        node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
         node.setFiles(inputFile);
         node.openFiles();
 
