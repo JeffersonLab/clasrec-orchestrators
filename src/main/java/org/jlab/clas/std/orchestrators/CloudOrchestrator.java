@@ -534,8 +534,9 @@ public final class CloudOrchestrator {
                     processingQueue.add(fileName.toString());
                     paths.requestedFiles.remove();
                     Logging.info(filePath + " is cached.");
+                } else {
+                    orchestrator.sleep(100);
                 }
-                orchestrator.sleep(100);
             }
         }
     }
