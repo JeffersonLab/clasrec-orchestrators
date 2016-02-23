@@ -265,38 +265,38 @@ class ReconstructionNode {
     }
 
 
-    private void syncConfig(ServiceName serviceName, JPropertyList data, int timeout) {
+    private void syncConfig(ServiceName service, JPropertyList data, int timeout) {
         try {
             EngineData input = new EngineData();
             input.setData(MimeType.PROPERTY_LIST.type(), data);
-            orchestrator.base.configure(serviceName)
+            orchestrator.base.configure(service)
                              .withData(input)
                              .syncRun(timeout, TimeUnit.SECONDS);
         } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not configure service = " + serviceName, e);
+            throw new OrchestratorError("Could not configure service = " + service, e);
         }
     }
 
 
-    private EngineData syncSend(ServiceName serviceName, String data, int timeout)
+    private EngineData syncSend(ServiceName service, String data, int timeout)
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
         input.setData(EngineDataType.STRING.mimeType(), data);
-        return syncSend(serviceName, input, timeout);
+        return syncSend(service, input, timeout);
     }
 
 
-    private EngineData syncSend(ServiceName serviceName, JPropertyList data, int timeout)
+    private EngineData syncSend(ServiceName service, JPropertyList data, int timeout)
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
         input.setData(MimeType.PROPERTY_LIST.type(), data);
-        return syncSend(serviceName, input, timeout);
+        return syncSend(service, input, timeout);
     }
 
 
-    private EngineData syncSend(ServiceName serviceName, EngineData input, int timeout)
+    private EngineData syncSend(ServiceName service, EngineData input, int timeout)
             throws ClaraException, TimeoutException {
-        EngineData output = orchestrator.base.execute(serviceName)
+        EngineData output = orchestrator.base.execute(service)
                                              .withData(input)
                                              .syncRun(timeout, TimeUnit.SECONDS);
         if (output.getStatus() == EngineStatus.ERROR) {
