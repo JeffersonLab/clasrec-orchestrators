@@ -623,11 +623,11 @@ public final class CloudOrchestrator {
     public static class CommandLineBuilder {
 
         private static final String ARG_FRONTEND      = "frontEnd";
+        private static final String ARG_USE_FRONTEND  = "useFrontEnd";
         private static final String ARG_CACHE_DIR     = "cacheDir";
         private static final String ARG_INPUT_DIR     = "inputDir";
         private static final String ARG_OUTPUT_DIR    = "outputDir";
         private static final String ARG_STAGE_DIR     = "stageDir";
-        private static final String ARG_USE_FRONTEND     = "useLocal";
         private static final String ARG_MAX_NODES     = "maxNodes";
         private static final String ARG_MAX_THREADS   = "maxThreads";
         private static final String ARG_SERVICES_FILE = "servicesFile";
@@ -684,7 +684,11 @@ public final class CloudOrchestrator {
                     .setRequired(false)
                     .setShortFlag('f')
                     .setDefault("localhost");
-            frontEnd.setHelp("The IP of the CLARA front-end.");
+            frontEnd.setHelp("The address of the CLARA front-end.");
+
+            Switch useFrontEnd = new Switch(ARG_USE_FRONTEND)
+                    .setShortFlag('F');
+            useFrontEnd.setHelp("Use front-end for reconstruction");
 
             FlaggedOption tapeDir = new FlaggedOption(ARG_CACHE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
@@ -714,10 +718,6 @@ public final class CloudOrchestrator {
                     .setDefault(CloudPaths.STAGE_DIR);
             stageDir.setHelp("The stage directory where the local temporary files will be stored.");
 
-            Switch useLocal = new Switch(ARG_USE_FRONTEND)
-                    .setShortFlag('u');
-            useLocal.setHelp("Use front-end for reconstruction");
-
             FlaggedOption maxNodes = new FlaggedOption(ARG_MAX_NODES)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('n')
@@ -745,10 +745,10 @@ public final class CloudOrchestrator {
 
             try {
                 jsap.registerParameter(frontEnd);
+                jsap.registerParameter(useFrontEnd);
                 jsap.registerParameter(inputDir);
                 jsap.registerParameter(outputDir);
                 jsap.registerParameter(stageDir);
-                jsap.registerParameter(useLocal);
                 jsap.registerParameter(maxNodes);
                 jsap.registerParameter(maxThreads);
                 jsap.registerParameter(servicesFile);
