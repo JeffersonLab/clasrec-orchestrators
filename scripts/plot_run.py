@@ -22,6 +22,15 @@ def parse_datetime(text):
     return datetime.datetime.strptime(text, "%Y-%m-%d %H:%M:%S.%f")
 
 
+def split_ip(ip):
+    lang_sep = ip.index('_')
+    return tuple(int(part) for part in ip[:lang_sep].split('.'))
+
+
+def dpe_key(item):
+    return split_ip(item)
+
+
 class File:
     def __init__(self, name, events, node):
         self.node = node
@@ -101,7 +110,8 @@ class Parser:
             f.deltas(self.u_start)
 
     def report(self):
-        for n in self.nodes.values():
+        for k in sorted(self.nodes, key=dpe_key):
+            n = self.nodes[k]
             nd = n.t_start.strftime("%H:%M:%S.%f")[:-3]
             print "[%s]:  %s" % (nd, n.name)
             for f in n.files.values():
@@ -170,7 +180,8 @@ class Plot:
     def _draw_nodes(self, nodes):
         self.nodes_pos = {}
         i = 0
-        for n in nodes.values():
+        for k in reversed(sorted(nodes, key=dpe_key)):
+            n = nodes[k]
             i += 1
             pos = len(nodes) - i
             self.nodes_pos[n.name] = pos
@@ -180,7 +191,7 @@ class Plot:
             plt.plot((n.d_ready, n.d_ready), (pos, pos+1), 'r-')
 
         ytpos = [y + 0.5 for y in range(len(nodes))]
-        ytnames = [n.name for n in reversed(nodes.values())]
+        ytnames = [nodes[k].name for k in sorted(nodes, key=dpe_key)]
         self.ax.yaxis.set_major_formatter(ticker.NullFormatter())
         self.ax.yaxis.set_minor_locator(ticker.FixedLocator(ytpos))
         self.ax.yaxis.set_minor_formatter(ticker.FixedFormatter(ytnames))
