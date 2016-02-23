@@ -100,6 +100,7 @@ public final class CloudOrchestrator {
         private String frontEnd = "localhost";
         private boolean useFrontEnd = false;
 
+        private int poolSize = CloudSetup.DEFAULT_POOLSIZE;
         private int maxThreads = CloudSetup.MAX_THREADS;
         private int maxNodes = CloudSetup.MAX_NODES;
 
@@ -145,6 +146,18 @@ public final class CloudOrchestrator {
          */
         public Builder useFrontEnd() {
             this.useFrontEnd = true;
+            return this;
+        }
+
+        /**
+         * Sets the size of the thread-pool that will process reports from
+         * services and nodes.
+         */
+        public Builder withPoolSize(int poolSize) {
+            if (poolSize <= 0) {
+                throw new IllegalArgumentException("Invalid pool size: " + poolSize);
+            }
+            this.poolSize = poolSize;
             return this;
         }
 
@@ -215,8 +228,8 @@ public final class CloudOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd,
-                                              useFrontEnd, maxNodes, maxThreads);
+            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
+                                              poolSize, maxNodes, maxThreads);
             CloudPaths paths = new CloudPaths(inputFiles, inputDir, outputDir, stageDir);
             return new CloudOrchestrator(setup, paths);
         }
@@ -229,9 +242,11 @@ public final class CloudOrchestrator {
         final String frontEnd;
         final List<ServiceInfo> recChain;
         final boolean useFrontEnd;
+        final int poolSize;
         final int maxNodes;
         final int maxThreads;
 
+        static final int DEFAULT_POOLSIZE = 32;
         static final int MAX_NODES = 512;
         static final int MAX_THREADS = 64;
 
@@ -239,18 +254,20 @@ public final class CloudOrchestrator {
                    String localhost,
                    String frontEnd,
                    boolean useFrontEnd,
+                   int poolSize,
                    int maxNodes,
                    int maxThreads) {
             this.localHost = ReconstructionConfigParser.hostAddress(localhost);
             this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
             this.recChain = recChain;
             this.useFrontEnd = useFrontEnd;
+            this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
         }
 
         CloudSetup(String frontEnd, List<ServiceInfo> recChain) {
-            this(recChain, "localhost", frontEnd, true, MAX_NODES, MAX_THREADS);
+            this(recChain, "localhost", frontEnd, true, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
         }
     }
 
@@ -340,7 +357,7 @@ public final class CloudOrchestrator {
 
     private CloudOrchestrator(CloudSetup setup, CloudPaths paths) {
         try {
-            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, 32);
+            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, setup.poolSize);
             orchestrator.setReconstructionChain(setup.recChain);
 
             this.setup = setup;
@@ -431,6 +448,7 @@ public final class CloudOrchestrator {
         System.out.println("- Host         = " + setup.localHost);
         System.out.println("- Front-end    = " + setup.frontEnd);
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTimeInH());
+        System.out.println("- Pool size    = " + setup.poolSize);
         System.out.println();
         System.out.println("- Input directory  = " + paths.inputDir);
         System.out.println("- Output directory = " + paths.outputDir);
@@ -631,6 +649,7 @@ public final class CloudOrchestrator {
         private static final String ARG_INPUT_DIR     = "inputDir";
         private static final String ARG_OUTPUT_DIR    = "outputDir";
         private static final String ARG_STAGE_DIR     = "stageDir";
+        private static final String ARG_POOL_SIZE     = "poolSize";
         private static final String ARG_MAX_NODES     = "maxNodes";
         private static final String ARG_MAX_THREADS   = "maxThreads";
         private static final String ARG_SERVICES_FILE = "servicesFile";
@@ -660,6 +679,8 @@ public final class CloudOrchestrator {
         public CloudOrchestrator build() {
             String frontEnd = config.getString(ARG_FRONTEND);
             boolean useFrontEnd = config.getBoolean(ARG_USE_FRONTEND);
+
+            int poolSize = config.getInt(ARG_POOL_SIZE);
             int maxNodes = config.getInt(ARG_MAX_NODES);
             int maxThreads = config.getInt(ARG_MAX_THREADS);
 
@@ -674,8 +695,8 @@ public final class CloudOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd,
-                                              useFrontEnd, maxNodes, maxThreads);
+            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
+                                              poolSize, maxNodes, maxThreads);
             CloudPaths paths = new CloudPaths(inFiles, inDir, outDir, tmpDir);
 
             return new CloudOrchestrator(setup, paths);
@@ -721,6 +742,13 @@ public final class CloudOrchestrator {
                     .setDefault(CloudPaths.STAGE_DIR);
             stageDir.setHelp("The stage directory where the local temporary files will be stored.");
 
+            FlaggedOption poolSize = new FlaggedOption(ARG_POOL_SIZE)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('p')
+                    .setDefault(String.valueOf(CloudSetup.DEFAULT_POOLSIZE))
+                    .setRequired(false);
+            poolSize.setHelp("The size of the thread-pool processing service and node reports.");
+
             FlaggedOption maxNodes = new FlaggedOption(ARG_MAX_NODES)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('n')
@@ -752,6 +780,7 @@ public final class CloudOrchestrator {
                 jsap.registerParameter(inputDir);
                 jsap.registerParameter(outputDir);
                 jsap.registerParameter(stageDir);
+                jsap.registerParameter(poolSize);
                 jsap.registerParameter(maxNodes);
                 jsap.registerParameter(maxThreads);
                 jsap.registerParameter(servicesFile);
