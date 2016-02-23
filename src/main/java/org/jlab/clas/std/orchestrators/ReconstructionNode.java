@@ -61,7 +61,7 @@ class ReconstructionNode {
         pl.addTailProperty("input_path", inputPath);
         pl.addTailProperty("output_path", outputPath);
         pl.addTailProperty("stage_path", stagePath);
-        syncConfig(stageName, pl, 120);
+        syncConfig(stageName, pl, 2, TimeUnit.MINUTES);
     }
 
 
@@ -76,7 +76,7 @@ class ReconstructionNode {
             pl.addTailProperty("file", currentInputFileName);
 
             Logging.info("Staging file %s on %s", currentInputFileName, dpe.name);
-            EngineData result = syncSend(stageName, pl, 300);
+            EngineData result = syncSend(stageName, pl, 5, TimeUnit.MINUTES);
 
             if (!result.getStatus().equals(EngineStatus.ERROR)) {
                 JPropertyList rl = (JPropertyList) result.getData();
@@ -107,12 +107,12 @@ class ReconstructionNode {
             JPropertyList plr = new JPropertyList();
             plr.addHeadProperty("action", "remove_input");
             plr.addTailProperty("file", currentInputFileName);
-            EngineData rr = syncSend(stageName, plr, 300);
+            EngineData rr = syncSend(stageName, plr, 5, TimeUnit.MINUTES);
 
             JPropertyList pls = new JPropertyList();
             pls.addHeadProperty("action", "save_output");
             pls.addTailProperty("file", currentInputFileName);
-            EngineData rs = syncSend(stageName, pls, 300);
+            EngineData rs = syncSend(stageName, pls, 5, TimeUnit.MINUTES);
 
             currentInputFileName = CConstants.UNDEFINED;
             currentInputFile = CConstants.UNDEFINED;
@@ -152,7 +152,7 @@ class ReconstructionNode {
         JPropertyList inputConfig = new JPropertyList();
         inputConfig.addHeadProperty("action", "open");
         inputConfig.addTailProperty("file", currentInputFile);
-        syncConfig(readerName, inputConfig, 30);
+        syncConfig(readerName, inputConfig, 30, TimeUnit.SECONDS);
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
@@ -163,7 +163,7 @@ class ReconstructionNode {
         outputConfig.addTailProperty("file", currentOutputFile);
         outputConfig.addTailProperty("order", fileOrder);
         outputConfig.addTailProperty("overwrite", "true");
-        syncConfig(writerName, outputConfig, 30);
+        syncConfig(writerName, outputConfig, 30, TimeUnit.SECONDS);
 
         // set "report done" frequency
         if (frequency <= 0) {
@@ -181,18 +181,18 @@ class ReconstructionNode {
         JPropertyList plr = new JPropertyList();
         plr.addHeadProperty("action", "close");
         plr.addTailProperty("file", currentInputFile);
-        syncConfig(readerName, plr, 30);
+        syncConfig(readerName, plr, 30, TimeUnit.SECONDS);
 
         JPropertyList plw = new JPropertyList();
         plw.addHeadProperty("action", "close");
         plw.addTailProperty("file", currentOutputFile);
-        syncConfig(writerName, plr, 30);
+        syncConfig(writerName, plr, 30, TimeUnit.SECONDS);
     }
 
 
     private String requestFileOrder() {
         try {
-            EngineData output = syncSend(readerName, "order", 30);
+            EngineData output = syncSend(readerName, "order", 30, TimeUnit.SECONDS);
             return (String) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get input file order", e);
@@ -202,7 +202,7 @@ class ReconstructionNode {
 
     private int requestNumberOfEvents() {
         try {
-            EngineData output = syncSend(readerName, "count", 30);
+            EngineData output = syncSend(readerName, "count", 30, TimeUnit.SECONDS);
             return (Integer) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get number of input events", e);
@@ -265,40 +265,40 @@ class ReconstructionNode {
     }
 
 
-    private void syncConfig(ServiceName service, JPropertyList data, int timeout) {
+    private void syncConfig(ServiceName service, JPropertyList data, int wait, TimeUnit unit) {
         try {
             EngineData input = new EngineData();
             input.setData(MimeType.PROPERTY_LIST.type(), data);
             orchestrator.base.configure(service)
                              .withData(input)
-                             .syncRun(timeout, TimeUnit.SECONDS);
+                             .syncRun(wait, unit);
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not configure service = " + service, e);
         }
     }
 
 
-    private EngineData syncSend(ServiceName service, String data, int timeout)
+    private EngineData syncSend(ServiceName service, String data, int wait, TimeUnit unit)
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
         input.setData(EngineDataType.STRING.mimeType(), data);
-        return syncSend(service, input, timeout);
+        return syncSend(service, input, wait, unit);
     }
 
 
-    private EngineData syncSend(ServiceName service, JPropertyList data, int timeout)
+    private EngineData syncSend(ServiceName service, JPropertyList data, int wait, TimeUnit unit)
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
         input.setData(MimeType.PROPERTY_LIST.type(), data);
-        return syncSend(service, input, timeout);
+        return syncSend(service, input, wait, unit);
     }
 
 
-    private EngineData syncSend(ServiceName service, EngineData input, int timeout)
+    private EngineData syncSend(ServiceName service, EngineData input, int wait, TimeUnit unit)
             throws ClaraException, TimeoutException {
         EngineData output = orchestrator.base.execute(service)
                                              .withData(input)
-                                             .syncRun(timeout, TimeUnit.SECONDS);
+                                             .syncRun(wait, unit);
         if (output.getStatus() == EngineStatus.ERROR) {
             throw new ClaraException(output.getDescription());
         }
