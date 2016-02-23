@@ -99,6 +99,7 @@ public final class CloudOrchestrator {
 
         private String frontEnd = "localhost";
         private boolean useFrontEnd = false;
+        private boolean stageFiles = false;
 
         private int poolSize = CloudSetup.DEFAULT_POOLSIZE;
         private int maxThreads = CloudSetup.MAX_THREADS;
@@ -146,6 +147,23 @@ public final class CloudOrchestrator {
          */
         public Builder useFrontEnd() {
             this.useFrontEnd = true;
+            return this;
+        }
+
+        /**
+         * Stages the input file on the node for local access.
+         * By default, all files are expected to be on the input directory.
+         * <p>
+         * When staging is used, the files will be copied on demand from the
+         * input directory into the staging directory before using it.
+         * The output file will also be saved in the stating directory. When the
+         * reconstruction is finished, it will be moved back to the output
+         * directory.
+         *
+         * @see #withStageDirectory(String)
+         */
+        public Builder useStageDirectory() {
+            this.stageFiles = true;
             return this;
         }
 
@@ -229,7 +247,7 @@ public final class CloudOrchestrator {
          */
         public CloudOrchestrator build() {
             CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
-                                              poolSize, maxNodes, maxThreads);
+                                              stageFiles, poolSize, maxNodes, maxThreads);
             CloudPaths paths = new CloudPaths(inputFiles, inputDir, outputDir, stageDir);
             return new CloudOrchestrator(setup, paths);
         }
@@ -242,6 +260,7 @@ public final class CloudOrchestrator {
         final String frontEnd;
         final List<ServiceInfo> recChain;
         final boolean useFrontEnd;
+        final boolean stageFiles;
         final int poolSize;
         final int maxNodes;
         final int maxThreads;
@@ -254,6 +273,7 @@ public final class CloudOrchestrator {
                    String localhost,
                    String frontEnd,
                    boolean useFrontEnd,
+                   boolean stageFiles,
                    int poolSize,
                    int maxNodes,
                    int maxThreads) {
@@ -261,13 +281,15 @@ public final class CloudOrchestrator {
             this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
             this.recChain = recChain;
             this.useFrontEnd = useFrontEnd;
+            this.stageFiles = stageFiles;
             this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
         }
 
         CloudSetup(String frontEnd, List<ServiceInfo> recChain) {
-            this(recChain, "localhost", frontEnd, true, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
+            this(recChain, "localhost", frontEnd, true, true,
+                 DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
         }
     }
 
@@ -387,8 +409,7 @@ public final class CloudOrchestrator {
             printStartup();
             Logging.info("Waiting for reconstruction nodes...");
             orchestrator.listenDpes(new DpeReportCB());
-            Logging.info("Monitoring files on input directory...");
-            new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+            checkFiles();
             startRec();
             waitRec();
             end();
@@ -500,7 +521,9 @@ public final class CloudOrchestrator {
             orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));
             Logging.info("All services deployed on " + node.dpe.name);
 
-            node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
+            if (setup.stageFiles) {
+                node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
+            }
             // TODO send proper configuration data
             EngineData configData = new EngineData();
             configData.setData(EngineDataType.STRING.mimeType(), "config");
@@ -514,6 +537,18 @@ public final class CloudOrchestrator {
         } catch (OrchestratorError e) {
             Logging.error("Could not use %s for reconstruction%n%s",
                           node.dpe.name, e.getMessage());
+        }
+    }
+
+
+    private void checkFiles() {
+        if (setup.stageFiles) {
+            Logging.info("Monitoring files on input directory...");
+            new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+        } else {
+            for (String input : paths.requestedFiles) {
+                processingQueue.add(input);
+            }
         }
     }
 
@@ -571,7 +606,13 @@ public final class CloudOrchestrator {
         DpeInfo dpe = node.dpe;
 
         // TODO check DPE is alive
-        node.setFiles(inputFile);
+        if (setup.stageFiles) {
+            node.setFiles(inputFile);
+        } else {
+            String inputFileName = paths.inputDir + File.separator + inputFile;
+            String outputFileName = paths.outputDir + File.separator + "out_" + inputFile;
+            node.setFiles(inputFileName, outputFileName);
+        }
         node.openFiles();
 
         List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
@@ -593,8 +634,10 @@ public final class CloudOrchestrator {
     private void processFinishedFile(ReconstructionNode node) {
         String currentFile = node.currentInputFileName;
         node.closeFiles();
-        node.saveOutputFile();
-        Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
+        if (setup.stageFiles) {
+            node.saveOutputFile();
+            Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
+        }
         int counter = processedFilesCounter.incrementAndGet();
         if (counter == paths.inputFiles.size()) {
             stats.stopClock();
@@ -649,6 +692,7 @@ public final class CloudOrchestrator {
 
         private static final String ARG_FRONTEND      = "frontEnd";
         private static final String ARG_USE_FRONTEND  = "useFrontEnd";
+        private static final String ARG_STAGE_FILES   = "stageFiles";
         private static final String ARG_CACHE_DIR     = "cacheDir";
         private static final String ARG_INPUT_DIR     = "inputDir";
         private static final String ARG_OUTPUT_DIR    = "outputDir";
@@ -690,6 +734,7 @@ public final class CloudOrchestrator {
 
             String services = config.getString(ARG_SERVICES_FILE);
             String files = config.getString(ARG_INPUT_FILES);
+            boolean stageFiles = config.getBoolean(ARG_STAGE_FILES);
 
             String inDir = config.getString(ARG_INPUT_DIR);
             String outDir = config.getString(ARG_OUTPUT_DIR);
@@ -700,7 +745,7 @@ public final class CloudOrchestrator {
             List<String> inFiles = parser.readInputFiles(files);
 
             CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
-                                              poolSize, maxNodes, maxThreads);
+                                              stageFiles, poolSize, maxNodes, maxThreads);
             CloudPaths paths = new CloudPaths(inFiles, inDir, outDir, tmpDir);
 
             return new CloudOrchestrator(setup, paths);
@@ -717,6 +762,10 @@ public final class CloudOrchestrator {
             Switch useFrontEnd = new Switch(ARG_USE_FRONTEND)
                     .setShortFlag('F');
             useFrontEnd.setHelp("Use front-end for reconstruction");
+
+            Switch stageFiles = new Switch(ARG_STAGE_FILES)
+                    .setShortFlag('S');
+            stageFiles.setHelp("Stage files before using them");
 
             FlaggedOption tapeDir = new FlaggedOption(ARG_CACHE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
@@ -781,6 +830,7 @@ public final class CloudOrchestrator {
             try {
                 jsap.registerParameter(frontEnd);
                 jsap.registerParameter(useFrontEnd);
+                jsap.registerParameter(stageFiles);
                 jsap.registerParameter(inputDir);
                 jsap.registerParameter(outputDir);
                 jsap.registerParameter(stageDir);
