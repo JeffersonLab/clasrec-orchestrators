@@ -1,6 +1,12 @@
 ---
 services:
-- name: ECReconstruction
-  class: org.jlab.clas12.ec.services.ECReconstruction
-- name: BigFactorial
-  class: org.jlab.clas.std.services.util.BigFactorial
+  - class: org.jlab.rec.ec.ECReconstruction
+    name: EC
+  - class: org.jlab.rec.ftof.SCReconstruction
+    name: FTOF
+  - class: org.jlab.rec.dc.services.HitBasedTracking
+    name: DCHB
+  - class: org.jlab.rec.dc.services.TimeBasedTracking
+    name: DCTB
+  - class: org.jlab.rec.eb.CLASEventBuilder
+    name: EB
