@@ -130,7 +130,7 @@ public final class CloudOrchestrator {
          * running in the same node as the front-end, or if the orchestrator is
          * not using the proper network interface for the front-end.
          */
-        public Builder setFrontEnd(String frontEnd) {
+        public Builder withFrontEnd(String frontEnd) {
             Objects.requireNonNull(frontEnd, "frontEnd parameter is null");
             if (frontEnd.isEmpty()) {
                 throw new IllegalArgumentException("frontEnd parameter is empty");
