@@ -340,7 +340,7 @@ public final class CloudOrchestrator {
 
     private CloudOrchestrator(CloudSetup setup, CloudPaths paths) {
         try {
-            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, 2);
+            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, 32);
             orchestrator.setReconstructionChain(setup.recChain);
 
             this.setup = setup;
