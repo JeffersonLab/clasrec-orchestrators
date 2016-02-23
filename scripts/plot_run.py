@@ -94,7 +94,7 @@ class Parser:
                     self._parse_node_ready(line)
                 elif "Using" in line:
                     self._parse_start_file(line)
-                elif "reconstructed!" in line:
+                elif "Finished" in line or "reconstructed!" in line:
                     self._parse_end_file(line)
                 elif "Waiting for" in line:
                     self.t_start = self._get_logtime(line.split())
@@ -149,7 +149,10 @@ class Parser:
     def _parse_end_file(self, line):
         tokens = line.split()
         time = self._get_logtime(tokens)
-        name = tokens[3]
+        if tokens[2] == "Finished":
+            name = tokens[4]
+        else:
+            name = tokens[3]
         avg = tokens[-2]
 
         infile = self.files[name]

@@ -563,8 +563,8 @@ public final class CloudOrchestrator {
         long recTime = endTime - node.startTime;
         double timePerEvent = recTime / (double) node.eventNumber;
         stats.update(node, node.eventNumber, recTime);
-        Logging.info("File %s reconstructed! Average event processing time = %.2f ms",
-                     node.currentInputFileName, timePerEvent);
+        Logging.info("Finished file %s on %s. Average event time = %.2f ms",
+                     node.currentInputFileName, node.dpe.name, timePerEvent);
     }
 
 

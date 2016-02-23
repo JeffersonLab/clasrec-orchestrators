@@ -75,7 +75,7 @@ class ReconstructionNode {
             pl.addHeadProperty("action", "stage_input");
             pl.addTailProperty("file", currentInputFileName);
 
-            Logging.info("Staging file %s in %s%n", currentInputFileName, dpe.name);
+            Logging.info("Staging file %s on %s", currentInputFileName, dpe.name);
             EngineData result = syncSend(stageName, pl, 300);
 
             if (!result.getStatus().equals(EngineStatus.ERROR)) {
@@ -148,7 +148,7 @@ class ReconstructionNode {
         eventNumber = 0;
 
         // open input file
-        Logging.info("Opening file %s in %s", currentInputFileName, dpe.name);
+        Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
         JPropertyList inputConfig = new JPropertyList();
         inputConfig.addHeadProperty("action", "open");
         inputConfig.addTailProperty("file", currentInputFile);
@@ -228,10 +228,10 @@ class ReconstructionNode {
 
         int requestId = 1;
         if (eventNumber > 0) {
-            Logging.info("Using %d cores in %s to reconstruct %d events of %s",
+            Logging.info("Using %d cores on %s to reconstruct %d events of %s",
                          dpeCores, dpeName, eventNumber, currentInputFileName);
         } else {
-            Logging.info("Using %d cores in %s to reconstruct %s",
+            Logging.info("Using %d cores on %s to reconstruct %s",
                          dpeCores, dpeName, currentInputFileName);
         }
 
