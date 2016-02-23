@@ -278,7 +278,11 @@ class ReconstructionOrchestrator {
 
 
     private void checkServices(DpeInfo dpe, List<ServiceName> services) {
-        final int maxAttempts = 10;
+        final int sleepTime = 2000;
+        final int totalConnectTime = 1000 * 10 * services.size();
+        final int maxAttempts = totalConnectTime / sleepTime;
+        final int retryAttempts = maxAttempts / 2;
+
         int counter = 1;
         while (true) {
             Set<ServiceName> regServices = getRegisteredServices(dpe);
@@ -286,7 +290,7 @@ class ReconstructionOrchestrator {
             if (missingServices.isEmpty()) {
                 return;
             } else {
-                if (counter == 4) {
+                if (counter == retryAttempts) {
                     reDeploy(regServices, missingServices);
                 }
                 counter++;
