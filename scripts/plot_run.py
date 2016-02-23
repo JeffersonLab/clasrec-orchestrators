@@ -199,8 +199,8 @@ class Plot:
     def _draw_files(self, files):
         self.ax.set_xlabel("Time [ms]")
         for f in files.values():
-            node_pos = self.nodes_pos[f.node.name]
-            point = (f.d_start, node_pos)
+            pos = self.nodes_pos[f.node.name]
+            point = (f.d_start, pos)
             width = f.d_total
             height = 1
             rect = mpl.patches.Rectangle(point, width, height, color='red')
