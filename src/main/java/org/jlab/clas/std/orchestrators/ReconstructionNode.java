@@ -298,7 +298,7 @@ class ReconstructionNode {
             throws ClaraException, TimeoutException {
         EngineData output = orchestrator.base.execute(serviceName)
                                              .withData(input)
-                                             .syncRun(30, TimeUnit.SECONDS);
+                                             .syncRun(timeout, TimeUnit.SECONDS);
         if (output.getStatus() == EngineStatus.ERROR) {
             throw new ClaraException(output.getDescription());
         }
