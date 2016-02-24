@@ -645,18 +645,23 @@ public final class CloudOrchestrator {
 
 
     private void processFinishedFile(ReconstructionNode node) {
-        String currentFile = node.currentInputFileName;
-        node.closeFiles();
-        if (setup.stageFiles) {
-            node.saveOutputFile();
-            Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
-        }
-        int counter = processedFilesCounter.incrementAndGet();
-        if (counter == paths.inputFiles.size()) {
-            stats.stopClock();
-            exitRec(true, "Processing is complete.");
-        } else {
-            freeNodes.add(node);
+        try {
+            String currentFile = node.currentInputFileName;
+            node.closeFiles();
+            if (setup.stageFiles) {
+                node.saveOutputFile();
+                Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
+            }
+        } catch (OrchestratorError e) {
+            Logging.error("Could not close files on %s%n%s", node.dpe.name, e.getMessage());
+        } finally {
+            int counter = processedFilesCounter.incrementAndGet();
+            if (counter == paths.inputFiles.size()) {
+                stats.stopClock();
+                exitRec(true, "Processing is complete.");
+            } else {
+                freeNodes.add(node);
+            }
         }
     }
 
