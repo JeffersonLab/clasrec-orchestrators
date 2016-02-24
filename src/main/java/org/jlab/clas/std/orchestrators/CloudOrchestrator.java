@@ -676,15 +676,6 @@ public final class CloudOrchestrator {
 
         @Override
         public void callback(EngineData data) {
-            try {
-                handleError(data);
-            } catch (OrchestratorError e) {
-                Logging.error("Could not use %s for reconstruction%n%s",
-                              node.dpe.name, e.getMessage());
-            }
-        }
-
-        private void handleError(EngineData data) {
             ServiceName source = new ServiceName(data.getEngineName());
             DpeName host = source.dpe();
             int requestId = data.getCommunicationId();
