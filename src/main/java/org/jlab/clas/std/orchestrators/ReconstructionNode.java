@@ -152,7 +152,7 @@ class ReconstructionNode {
         JPropertyList inputConfig = new JPropertyList();
         inputConfig.addHeadProperty("action", "open");
         inputConfig.addTailProperty("file", currentInputFile);
-        syncConfig(readerName, inputConfig, 30, TimeUnit.SECONDS);
+        syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
@@ -163,7 +163,7 @@ class ReconstructionNode {
         outputConfig.addTailProperty("file", currentOutputFile);
         outputConfig.addTailProperty("order", fileOrder);
         outputConfig.addTailProperty("overwrite", "true");
-        syncConfig(writerName, outputConfig, 30, TimeUnit.SECONDS);
+        syncConfig(writerName, outputConfig, 5, TimeUnit.MINUTES);
 
         // set "report done" frequency
         if (frequency <= 0) {
@@ -181,18 +181,18 @@ class ReconstructionNode {
         JPropertyList plr = new JPropertyList();
         plr.addHeadProperty("action", "close");
         plr.addTailProperty("file", currentInputFile);
-        syncConfig(readerName, plr, 30, TimeUnit.SECONDS);
+        syncConfig(readerName, plr, 5, TimeUnit.MINUTES);
 
         JPropertyList plw = new JPropertyList();
         plw.addHeadProperty("action", "close");
         plw.addTailProperty("file", currentOutputFile);
-        syncConfig(writerName, plr, 30, TimeUnit.SECONDS);
+        syncConfig(writerName, plr, 5, TimeUnit.MINUTES);
     }
 
 
     private String requestFileOrder() {
         try {
-            EngineData output = syncSend(readerName, "order", 30, TimeUnit.SECONDS);
+            EngineData output = syncSend(readerName, "order", 1, TimeUnit.MINUTES);
             return (String) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get input file order", e);
@@ -202,7 +202,7 @@ class ReconstructionNode {
 
     private int requestNumberOfEvents() {
         try {
-            EngineData output = syncSend(readerName, "count", 30, TimeUnit.SECONDS);
+            EngineData output = syncSend(readerName, "count", 1, TimeUnit.MINUTES);
             return (Integer) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get number of input events", e);
