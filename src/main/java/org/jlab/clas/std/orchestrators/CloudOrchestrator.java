@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -490,9 +491,13 @@ public final class CloudOrchestrator {
                     return;
                 }
                 if (!nodes.contains(node)) {
-                    nodes.add(node);
-                    stats.add(node);
-                    nodesExecutor.execute(() -> setupNode(node));
+                    try {
+                        nodesExecutor.execute(() -> setupNode(node));
+                        nodes.add(node);
+                        stats.add(node);
+                    } catch (RejectedExecutionException e) {
+                        // ignore
+                    }
                 }
             }
         }
@@ -594,8 +599,12 @@ public final class CloudOrchestrator {
 
             final ReconstructionNode node = freeNodes.poll(60, TimeUnit.SECONDS);
             if (node != null) {
-                nodesExecutor.execute(() -> processFile(node, fileName));
-                processingQueue.remove();
+                try {
+                    nodesExecutor.execute(() -> processFile(node, fileName));
+                    processingQueue.remove();
+                } catch (RejectedExecutionException e) {
+                    freeNodes.add(node);
+                }
             }
         }
     }
