@@ -698,9 +698,13 @@ public final class CloudOrchestrator {
             } else if (description.startsWith("Error opening the file")) {
                 Logging.error(description);
             } else {
-                Logging.error("Error in %s (ID: %d):%n%s", source, requestId, description);
-                List<ServiceName> chain = orchestrator.generateReconstructionChain(node.dpe);
-                node.requestEvent(host, chain, requestId, "next-rec");
+                try {
+                    Logging.error("Error in %s (ID: %d):%n%s", source, requestId, description);
+                    List<ServiceName> chain = orchestrator.generateReconstructionChain(node.dpe);
+                    node.requestEvent(host, chain, requestId, "next-rec");
+                } catch (OrchestratorError e) {
+                    Logging.error(e.getMessage());
+                }
             }
         }
     }
