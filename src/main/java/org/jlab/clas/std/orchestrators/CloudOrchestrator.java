@@ -611,22 +611,26 @@ public final class CloudOrchestrator {
 
 
     private void processFile(ReconstructionNode node, String inputFile) {
-        stats.startClock();
-        DpeInfo dpe = node.dpe;
+        try {
+            stats.startClock();
+            DpeInfo dpe = node.dpe;
 
-        // TODO check DPE is alive
-        if (setup.stageFiles) {
-            node.setFiles(inputFile);
-        } else {
-            String inputFileName = paths.inputDir + File.separator + inputFile;
-            String outputFileName = paths.outputDir + File.separator + "out_" + inputFile;
-            node.setFiles(inputFileName, outputFileName);
+            // TODO check DPE is alive
+            if (setup.stageFiles) {
+                node.setFiles(inputFile);
+            } else {
+                String inputFileName = paths.inputDir + File.separator + inputFile;
+                String outputFileName = paths.outputDir + File.separator + "out_" + inputFile;
+                node.setFiles(inputFileName, outputFileName);
+            }
+            node.openFiles();
+
+            List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
+            int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
+            node.sendEventsToDpe(dpe.name, recChain, threads);
+        } catch (OrchestratorError e) {
+            Logging.error("Could not use %s for reconstruction%n%s", node.dpe.name, e.getMessage());
         }
-        node.openFiles();
-
-        List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
-        int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
-        node.sendEventsToDpe(dpe.name, recChain, threads);
     }
 
 
