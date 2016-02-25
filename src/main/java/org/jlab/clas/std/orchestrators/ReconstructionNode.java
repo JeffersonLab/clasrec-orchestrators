@@ -261,6 +261,7 @@ class ReconstructionNode {
         }
         composition += "+" + writerName.canonicalName();
         composition += "+" + readerName.canonicalName();
+        composition += ";";
         return new Composition(composition);
     }
 
