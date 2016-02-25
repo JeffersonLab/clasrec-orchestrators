@@ -39,6 +39,6 @@ the orchestrator will use it to process the next file in the list.
 
 The orchestrator will exit after all files have been reconstructed.
 
-<a href="https://asciinema.org/a/36154" target="_blank"><img src="https://asciinema.org/a/36154.png" width="600"/></a>
+<a href="https://asciinema.org/a/37351" target="_blank"><img src="https://asciinema.org/a/37351.png" width="600"/></a>
 
-<img src="http://i.imgur.com/n3HYCPd.png" width="600"/>
+<img src="https://userweb.jlab.org/~smancill/clas12/clas-multinode-orchestrator.png" width="600"/>
