@@ -22,6 +22,10 @@ def parse_datetime(text):
     return datetime.datetime.strptime(text, "%Y-%m-%d %H:%M:%S.%f")
 
 
+def to_seconds(ms):
+    return ms / 1000.0
+
+
 def split_ip(ip):
     lang_sep = ip.index('_')
     return tuple(int(part) for part in ip[:lang_sep].split('.'))
@@ -172,7 +176,7 @@ class Plot:
 
     def fill(self, parser):
         plt.ylim([0, len(parser.nodes)])
-        plt.xlim([0, parser.u_end - parser.u_start])
+        plt.xlim([0, to_seconds(parser.u_end - parser.u_start)])
 
         self._draw_nodes(parser.nodes)
         self._draw_files(parser.files)
@@ -189,9 +193,12 @@ class Plot:
             pos = len(nodes) - i
             self.nodes_pos[n.name] = pos
 
+            node_start = to_seconds(n.d_start)
+            node_ready = to_seconds(n.d_ready)
+
             self.ax.axhline(y=i, color='black')
-            plt.plot((n.d_start, n.d_start), (pos, pos+1), 'r-')
-            plt.plot((n.d_ready, n.d_ready), (pos, pos+1), 'r-')
+            plt.plot((node_start, node_start), (pos, pos+1), 'r-')
+            plt.plot((node_ready, node_ready), (pos, pos+1), 'r-')
 
         ytpos = [y + 0.5 for y in range(len(nodes))]
         ytnames = [nodes[k].name for k in sorted(nodes, key=dpe_key)]
@@ -200,11 +207,12 @@ class Plot:
         self.ax.yaxis.set_minor_formatter(ticker.FixedFormatter(ytnames))
 
     def _draw_files(self, files):
-        self.ax.set_xlabel("Time [ms]")
+        self.ax.set_xlabel("Time [s]")
+        start, end = self.ax.get_xlim()
         for f in files.values():
             pos = self.nodes_pos[f.node.name]
-            point = (f.d_start, pos)
-            width = f.d_total
+            point = (to_seconds(f.d_start), pos)
+            width = to_seconds(f.d_total)
             height = 1
             rect = mpl.patches.Rectangle(point, width, height, color='red')
             self.ax.add_patch(rect)
