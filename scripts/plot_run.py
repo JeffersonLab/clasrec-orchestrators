@@ -221,6 +221,8 @@ class Plot:
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
+    argparser.add_argument('--title', dest="plot_title",
+                           help='the title of the plot')
     argparser.add_argument('log_file',
                            help='the cloud-orchestrator output')
     args = argparser.parse_args()
@@ -231,4 +233,6 @@ if __name__ == '__main__':
 
     plot = Plot()
     plot.fill(parser)
+    if args.plot_title:
+        plot.fig.suptitle(args.plot_title, fontsize=14)
     plot.show()
