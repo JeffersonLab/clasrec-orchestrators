@@ -27,10 +27,11 @@ of input files for reconstruction on a set of worker nodes. It will wait for
 DPEs to be started on the nodes and it will use them as soon as they are
 alive.
 
-For each DPE, the orchestrator will first deploy and link the standard I/O
-services and the user reconstruction services. Then it will configure the I/O
-services to process one of the input files. Finally, it will request to start
-the reconstruction of the file using all cores in the node.
+For each DPE, the orchestrator will first deploy the standard I/O services and
+the user reconstruction services.
+Then it will configure the I/O services to process one of the input files.
+Finally, it will request to start the reconstruction of the file using all
+cores in the node.
 
 Each new DPE will be used for I/O and reconstruction (i.e. each node will be
 in charge of reconstructing its own single file). When a DPE finishes a file,
