@@ -516,11 +516,7 @@ public final class CloudOrchestrator {
         try {
             Logging.info("Start processing on " + node.dpe.name + "...");
             orchestrator.deployInputOutputServices(node.dpe, 1);
-            int cores = node.dpe.cores;
-            if (cores > 12) {
-                cores = 12;
-            }
-            orchestrator.deployReconstructionChain(node.dpe, cores);
+            orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
             orchestrator.checkInputOutputServices(node.dpe);
             orchestrator.checkReconstructionServices(node.dpe);
             orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));

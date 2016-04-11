@@ -309,9 +309,6 @@ public final class LocalOrchestrator {
             orchestrator.deployInputOutputServices(dpe, 1);
         }
         int availableProcessors = Runtime.getRuntime().availableProcessors();
-        if (availableProcessors > 12) {
-            availableProcessors = 12;
-        }
         for (DpeInfo dpe : setup.recNodes) {
             Logging.info("Deploying reconstruction chain in " + dpe.name);
             orchestrator.deployReconstructionChain(dpe, availableProcessors);
