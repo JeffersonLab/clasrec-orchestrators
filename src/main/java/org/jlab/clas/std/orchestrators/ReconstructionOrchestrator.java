@@ -23,10 +23,10 @@ import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.GenericCallback;
 import org.jlab.clara.base.ServiceName;
+import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.engine.ClaraSerializer;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
-import org.jlab.clara.util.CConstants;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas12.tools.MimeType;
 import org.jlab.clas12.tools.property.JPropertyList;
@@ -239,7 +239,7 @@ class ReconstructionOrchestrator {
 
     Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
         try {
-            String topic = CConstants.CONTAINER + ":" + dpe.name;
+            String topic = ClaraConstants.CONTAINER + ":" + dpe.name;
             Set<xMsgRegistration> regData = findSubscribers(feHost, topic);
             Set<ContainerName> regContainers = new HashSet<>();
             for (xMsgRegistration x : regData) {

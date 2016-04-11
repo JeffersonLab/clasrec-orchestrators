@@ -9,11 +9,11 @@ import org.jlab.clara.base.Composition;
 import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.ServiceName;
+import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
-import org.jlab.clara.util.CConstants;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas12.tools.MimeType;
 import org.jlab.clas12.tools.property.JPropertyList;
@@ -68,8 +68,8 @@ class ReconstructionNode {
     boolean setFiles(String inputFileName) {
         try {
             currentInputFileName = inputFileName;
-            currentInputFile = CConstants.UNDEFINED;
-            currentOutputFile = CConstants.UNDEFINED;
+            currentInputFile = ClaraConstants.UNDEFINED;
+            currentOutputFile = ClaraConstants.UNDEFINED;
 
             JPropertyList pl = new JPropertyList();
             pl.addHeadProperty("action", "stage_input");
@@ -85,7 +85,7 @@ class ReconstructionNode {
                 return true;
             } else {
                 System.err.println(result.getDescription());
-                currentInputFileName = CConstants.UNDEFINED;
+                currentInputFileName = ClaraConstants.UNDEFINED;
                 return false;
             }
         } catch (ClaraException | TimeoutException e) {
@@ -114,9 +114,9 @@ class ReconstructionNode {
             pls.addTailProperty("file", currentInputFileName);
             EngineData rs = syncSend(stageName, pls, 5, TimeUnit.MINUTES);
 
-            currentInputFileName = CConstants.UNDEFINED;
-            currentInputFile = CConstants.UNDEFINED;
-            currentOutputFile = CConstants.UNDEFINED;
+            currentInputFileName = ClaraConstants.UNDEFINED;
+            currentInputFile = ClaraConstants.UNDEFINED;
+            currentOutputFile = ClaraConstants.UNDEFINED;
 
             boolean status = true;
             if (rr.getStatus().equals(EngineStatus.ERROR)) {
