@@ -186,7 +186,7 @@ class ReconstructionNode {
         JPropertyList plw = new JPropertyList();
         plw.addHeadProperty("action", "close");
         plw.addTailProperty("file", currentOutputFile);
-        syncConfig(writerName, plr, 5, TimeUnit.MINUTES);
+        syncConfig(writerName, plw, 5, TimeUnit.MINUTES);
     }
 
 
