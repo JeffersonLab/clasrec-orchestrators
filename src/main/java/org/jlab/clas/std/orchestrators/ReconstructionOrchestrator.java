@@ -34,12 +34,10 @@ import org.jlab.coda.xmsg.core.xMsgConstants;
 import org.jlab.coda.xmsg.core.xMsgTopic;
 import org.jlab.coda.xmsg.data.xMsgR.xMsgRegistration;
 import org.jlab.coda.xmsg.excp.xMsgException;
-import org.jlab.coda.xmsg.xsys.regdis.xMsgRegResponse;
+import org.jlab.coda.xmsg.net.xMsgRegAddress;
+import org.jlab.coda.xmsg.net.xMsgSocketFactory;
+import org.jlab.coda.xmsg.xsys.regdis.xMsgRegDriver;
 import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMQException;
-import org.zeromq.ZMsg;
 
 class ReconstructionOrchestrator {
 
@@ -473,61 +471,24 @@ class ReconstructionOrchestrator {
     // TODO: this should be provided by Clara
     private Set<xMsgRegistration> findSubscribers(String host, String topic)
             throws xMsgException {
-        Socket connection = context.createSocket(ZMQ.REQ);
-        connection.connect("tcp://" + host + ":" + xMsgConstants.REGISTRAR_PORT);
+        xMsgRegAddress address = new xMsgRegAddress(host);
+        xMsgSocketFactory factory = new xMsgSocketFactory(context.getContext());
+        xMsgRegDriver driver = new xMsgRegDriver(address, factory);
+        driver.connect();
         try {
             xMsgTopic xtopic = xMsgTopic.wrap(topic);
             xMsgRegistration.Builder regb = xMsgRegistration.newBuilder();
-            regb.setName(base.getName());
-            regb.setHost(host);
-            regb.setPort(xMsgConstants.REGISTRAR_PORT);
+            regb.setName(xMsgConstants.UNDEFINED);
+            regb.setHost(xMsgConstants.UNDEFINED);
+            regb.setPort(xMsgConstants.DEFAULT_PORT);
             regb.setDomain(xtopic.domain());
             regb.setSubject(xtopic.subject());
             regb.setType(xtopic.type());
             regb.setOwnerType(xMsgRegistration.OwnerType.SUBSCRIBER);
             xMsgRegistration data = regb.build();
-            return find(connection, data);
+            return driver.findRegistration(base.getName(), data);
         } finally {
-            context.destroySocket(connection);
-        }
-    }
-
-
-    private Set<xMsgRegistration> find(Socket connection, xMsgRegistration data)
-            throws xMsgException {
-        byte[] dt = data.toByteArray();
-
-        ZMsg reqMsg = new ZMsg();
-        reqMsg.addString(xMsgConstants.FIND_SUBSCRIBER.toString());
-        reqMsg.addString(base.getName());
-        reqMsg.add(dt);
-
-        try {
-            reqMsg.send(connection, true);
-        } catch (ZMQException e) {
-            throw new xMsgException("error sending the message");
-        } finally {
-            reqMsg.destroy();
-        }
-
-        ZMQ.Poller poller = new ZMQ.Poller(1);
-        poller.register(connection, ZMQ.Poller.POLLIN);
-        poller.poll(xMsgConstants.FIND_REQUEST_TIMEOUT);
-
-        if (poller.pollin(0)) {
-            ZMsg responseMsg = ZMsg.recvMsg(connection);
-            try {
-                xMsgRegResponse response = new xMsgRegResponse(responseMsg);
-                String status = response.status();
-                if (!status.equals(xMsgConstants.SUCCESS.toString())) {
-                    throw new xMsgException(status);
-                }
-                return response.data();
-            } finally {
-                responseMsg.destroy();
-            }
-        } else {
-            throw new xMsgException("xMsg actor discovery timeout");
+            driver.close();
         }
     }
 }
