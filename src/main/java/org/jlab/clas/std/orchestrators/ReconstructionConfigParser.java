@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -189,7 +190,7 @@ public class ReconstructionConfigParser {
     public static String hostAddress(String host) {
         try {
             return xMsgUtil.toHostAddress(host);
-        } catch (IOException e) {
+        } catch (UncheckedIOException e) {
             throw new OrchestratorConfigError("node name not known: " + host);
         }
     }
