@@ -486,7 +486,7 @@ class ReconstructionOrchestrator {
             regb.setType(xtopic.type());
             regb.setOwnerType(xMsgRegistration.OwnerType.SUBSCRIBER);
             xMsgRegistration data = regb.build();
-            return driver.findRegistration(base.getName(), data);
+            return driver.filterRegistration(base.getName(), data);
         } finally {
             driver.close();
         }
