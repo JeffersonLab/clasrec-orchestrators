@@ -15,8 +15,7 @@ import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
-import org.jlab.clas12.tools.MimeType;
-import org.jlab.clas12.tools.property.JPropertyList;
+import org.json.JSONObject;
 
 
 class ReconstructionNode {
@@ -57,11 +56,11 @@ class ReconstructionNode {
 
 
     void setPaths(String inputPath, String outputPath, String stagePath) {
-        JPropertyList pl = new JPropertyList();
-        pl.addTailProperty("input_path", inputPath);
-        pl.addTailProperty("output_path", outputPath);
-        pl.addTailProperty("stage_path", stagePath);
-        syncConfig(stageName, pl, 2, TimeUnit.MINUTES);
+        JSONObject data = new JSONObject();
+        data.put("input_path", inputPath);
+        data.put("output_path", outputPath);
+        data.put("stage_path", stagePath);
+        syncConfig(stageName, data, 2, TimeUnit.MINUTES);
     }
 
 
@@ -71,17 +70,19 @@ class ReconstructionNode {
             currentInputFile = ClaraConstants.UNDEFINED;
             currentOutputFile = ClaraConstants.UNDEFINED;
 
-            JPropertyList pl = new JPropertyList();
-            pl.addHeadProperty("action", "stage_input");
-            pl.addTailProperty("file", currentInputFileName);
+            JSONObject data = new JSONObject();
+            data.put("type", "exec");
+            data.put("action", "stage_input");
+            data.put("file", currentInputFileName);
 
             Logging.info("Staging file %s on %s", currentInputFileName, dpe.name);
-            EngineData result = syncSend(stageName, pl, 5, TimeUnit.MINUTES);
+            EngineData result = syncSend(stageName, data, 5, TimeUnit.MINUTES);
 
             if (!result.getStatus().equals(EngineStatus.ERROR)) {
-                JPropertyList rl = (JPropertyList) result.getData();
-                currentInputFile = rl.getPropertyValue("input_file");
-                currentOutputFile = rl.getPropertyValue("output_file");
+                String rs = (String) result.getData();
+                JSONObject rd = new JSONObject(rs);
+                currentInputFile = rd.getString("input_file");
+                currentOutputFile = rd.getString("output_file");
                 return true;
             } else {
                 System.err.println(result.getDescription());
@@ -104,15 +105,17 @@ class ReconstructionNode {
 
     boolean saveOutputFile() {
         try {
-            JPropertyList plr = new JPropertyList();
-            plr.addHeadProperty("action", "remove_input");
-            plr.addTailProperty("file", currentInputFileName);
-            EngineData rr = syncSend(stageName, plr, 5, TimeUnit.MINUTES);
+            JSONObject cleanRequest = new JSONObject();
+            cleanRequest.put("type", "exec");
+            cleanRequest.put("action", "remove_input");
+            cleanRequest.put("file", currentInputFileName);
+            EngineData rr = syncSend(stageName, cleanRequest, 5, TimeUnit.MINUTES);
 
-            JPropertyList pls = new JPropertyList();
-            pls.addHeadProperty("action", "save_output");
-            pls.addTailProperty("file", currentInputFileName);
-            EngineData rs = syncSend(stageName, pls, 5, TimeUnit.MINUTES);
+            JSONObject saveRequest = new JSONObject();
+            saveRequest.put("type", "exec");
+            saveRequest.put("action", "save_output");
+            saveRequest.put("file", currentInputFileName);
+            EngineData rs = syncSend(stageName, saveRequest, 5, TimeUnit.MINUTES);
 
             currentInputFileName = ClaraConstants.UNDEFINED;
             currentInputFile = ClaraConstants.UNDEFINED;
@@ -149,20 +152,20 @@ class ReconstructionNode {
 
         // open input file
         Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
-        JPropertyList inputConfig = new JPropertyList();
-        inputConfig.addHeadProperty("action", "open");
-        inputConfig.addTailProperty("file", currentInputFile);
+        JSONObject inputConfig = new JSONObject();
+        inputConfig.put("action", "open");
+        inputConfig.put("file", currentInputFile);
         syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
 
         // open output file
-        JPropertyList outputConfig = new JPropertyList();
-        outputConfig.addHeadProperty("action", "open");
-        outputConfig.addTailProperty("file", currentOutputFile);
-        outputConfig.addTailProperty("order", fileOrder);
-        outputConfig.addTailProperty("overwrite", "true");
+        JSONObject outputConfig = new JSONObject();
+        outputConfig.put("action", "open");
+        outputConfig.put("file", currentOutputFile);
+        outputConfig.put("order", fileOrder);
+        outputConfig.put("overwrite", true);
         syncConfig(writerName, outputConfig, 5, TimeUnit.MINUTES);
 
         // set "report done" frequency
@@ -178,15 +181,15 @@ class ReconstructionNode {
 
 
     void closeFiles() {
-        JPropertyList plr = new JPropertyList();
-        plr.addHeadProperty("action", "close");
-        plr.addTailProperty("file", currentInputFile);
-        syncConfig(readerName, plr, 5, TimeUnit.MINUTES);
+        JSONObject closeInput = new JSONObject();
+        closeInput.put("action", "close");
+        closeInput.put("file", currentInputFile);
+        syncConfig(readerName, closeInput, 5, TimeUnit.MINUTES);
 
-        JPropertyList plw = new JPropertyList();
-        plw.addHeadProperty("action", "close");
-        plw.addTailProperty("file", currentOutputFile);
-        syncConfig(writerName, plw, 5, TimeUnit.MINUTES);
+        JSONObject closeOutput = new JSONObject();
+        closeOutput.put("action", "close");
+        closeOutput.put("file", currentOutputFile);
+        syncConfig(writerName, closeOutput, 5, TimeUnit.MINUTES);
     }
 
 
@@ -266,10 +269,10 @@ class ReconstructionNode {
     }
 
 
-    private void syncConfig(ServiceName service, JPropertyList data, int wait, TimeUnit unit) {
+    private void syncConfig(ServiceName service, JSONObject data, int wait, TimeUnit unit) {
         try {
             EngineData input = new EngineData();
-            input.setData(MimeType.PROPERTY_LIST.type(), data);
+            input.setData(EngineDataType.JSON.mimeType(), data.toString());
             orchestrator.base.configure(service)
                              .withData(input)
                              .syncRun(wait, unit);
@@ -287,10 +290,10 @@ class ReconstructionNode {
     }
 
 
-    private EngineData syncSend(ServiceName service, JPropertyList data, int wait, TimeUnit unit)
+    private EngineData syncSend(ServiceName service, JSONObject data, int wait, TimeUnit unit)
             throws ClaraException, TimeoutException {
         EngineData input = new EngineData();
-        input.setData(MimeType.PROPERTY_LIST.type(), data);
+        input.setData(EngineDataType.JSON.mimeType(), data.toString());
         return syncSend(service, input, wait, unit);
     }
 

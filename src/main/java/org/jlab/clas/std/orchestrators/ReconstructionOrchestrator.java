@@ -126,6 +126,7 @@ class ReconstructionOrchestrator {
 
         base.registerDataTypes(propertyList,
                                evio,
+                               EngineDataType.JSON,
                                EngineDataType.STRING,
                                EngineDataType.SFIXED32);
     }
