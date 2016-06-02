@@ -33,7 +33,6 @@ repositories {
 dependencies {
     provided 'org.jlab.coda:jclara:4.3-SNAPSHOT'
     compile 'org.jlab.coda:jevio:4.4.6'
-    compile 'org.jlab.coda:jtools:2.2'
     compile 'org.yaml:snakeyaml:1.15'
     compile 'org.json:json:20160212'
     compile 'com.martiansoftware:jsap:2.1'

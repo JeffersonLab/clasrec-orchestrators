@@ -1,7 +1,6 @@
 package org.jlab.clas.std.orchestrators;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,12 +23,9 @@ import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.GenericCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.core.ClaraConstants;
-import org.jlab.clara.engine.ClaraSerializer;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
-import org.jlab.clas12.tools.MimeType;
-import org.jlab.clas12.tools.property.JPropertyList;
 import org.jlab.coda.xmsg.core.xMsgConstants;
 import org.jlab.coda.xmsg.core.xMsgTopic;
 import org.jlab.coda.xmsg.data.xMsgR.xMsgRegistration;
@@ -105,27 +101,10 @@ class ReconstructionOrchestrator {
 
     // TODO: CLAS12 base package should provide these types
     private void registerDataTypes() {
-        EngineDataType propertyList = new EngineDataType(MimeType.PROPERTY_LIST.type(),
-                new ClaraSerializer() {
-
-                    @Override
-                    public ByteBuffer write(Object data) throws ClaraException {
-                        JPropertyList pl = (JPropertyList) data;
-                        return ByteBuffer.wrap(pl.getStringRepresentation(true).getBytes());
-                    }
-
-
-                    @Override
-                    public Object read(ByteBuffer buffer) throws ClaraException {
-                        return new JPropertyList(new String(buffer.array()));
-                    }
-                });
-
         EngineDataType evio =
-                new EngineDataType(MimeType.EVIO.type(), EngineDataType.BYTES.serializer());
+                new EngineDataType("binary/data-evio", EngineDataType.BYTES.serializer());
 
-        base.registerDataTypes(propertyList,
-                               evio,
+        base.registerDataTypes(evio,
                                EngineDataType.JSON,
                                EngineDataType.STRING,
                                EngineDataType.SFIXED32);
