@@ -13,7 +13,7 @@ final class Logging {
 
 
     static String getCurrentTime() {
-        Format formatter = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+        Format formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         return formatter.format(new Date());
     }
 
