@@ -351,11 +351,11 @@ public final class CloudOrchestrator {
             endTime.set(System.currentTimeMillis());
         }
 
-        public void update(ReconstructionNode node, int eventNumber, long recTime) {
+        public void update(ReconstructionNode node, int recEvents, long recTime) {
             NodeStats nodeStats = recStats.get(node);
-            nodeStats.events += eventNumber;
+            nodeStats.events += recEvents;
             nodeStats.totalTime += recTime;
-            events.addAndGet(eventNumber);
+            events.addAndGet(recEvents);
         }
 
         public double localAverage() {
