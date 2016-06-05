@@ -229,7 +229,6 @@ class ReconstructionNode {
             startTime = System.currentTimeMillis();
         }
 
-        int requestId = 1;
         if (eventNumber > 0) {
             Logging.info("Using %d cores on %s to reconstruct %d events of %s",
                          dpeCores, dpeName, eventNumber, currentInputFileName);
@@ -238,6 +237,7 @@ class ReconstructionNode {
                          dpeCores, dpeName, currentInputFileName);
         }
 
+        int requestId = 1;
         for (int i = 0; i < dpeCores; i++) {
             requestEvent(dpeName, chain, requestId++, "next");
         }
