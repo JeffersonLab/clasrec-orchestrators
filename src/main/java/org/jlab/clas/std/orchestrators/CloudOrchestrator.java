@@ -635,8 +635,8 @@ public final class CloudOrchestrator {
     private void printAverage(ReconstructionNode node) {
         long endTime = System.currentTimeMillis();
         long recTime = endTime - node.startTime;
-        double timePerEvent = recTime / (double) node.eventNumber;
-        stats.update(node, node.eventNumber, recTime);
+        double timePerEvent = recTime / (double) node.totalEvents;
+        stats.update(node, node.totalEvents, recTime);
         Logging.info("Finished file %s on %s. Average event time = %.2f ms",
                      node.currentInputFileName, node.dpe.name, timePerEvent);
     }

@@ -32,6 +32,7 @@ class ReconstructionNode {
     String currentInputFile;
     String currentOutputFile;
 
+    int totalEvents;
     int eventNumber;
     long startTime;
 
@@ -140,15 +141,13 @@ class ReconstructionNode {
 
     void openFiles() {
         openFiles(0);
-
-        // total number of events in the file
-        eventNumber = requestNumberOfEvents();
     }
 
 
     void openFiles(int frequency) {
         startTime = 0;
         eventNumber = 0;
+        totalEvents = 0;
 
         // open input file
         Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
@@ -156,6 +155,9 @@ class ReconstructionNode {
         inputConfig.put("action", "open");
         inputConfig.put("file", currentInputFile);
         syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
+
+        // total number of events in the file
+        totalEvents = requestNumberOfEvents();
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
@@ -229,13 +231,8 @@ class ReconstructionNode {
             startTime = System.currentTimeMillis();
         }
 
-        if (eventNumber > 0) {
-            Logging.info("Using %d cores on %s to reconstruct %d events of %s",
-                         dpeCores, dpeName, eventNumber, currentInputFileName);
-        } else {
-            Logging.info("Using %d cores on %s to reconstruct %s",
-                         dpeCores, dpeName, currentInputFileName);
-        }
+        Logging.info("Using %d cores on %s to reconstruct %d events of %s",
+                      dpeCores, dpeName, totalEvents, currentInputFileName);
 
         int requestId = 1;
         for (int i = 0; i < dpeCores; i++) {
