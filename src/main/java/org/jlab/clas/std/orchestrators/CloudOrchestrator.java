@@ -474,7 +474,9 @@ public final class CloudOrchestrator {
         System.out.println();
         System.out.println("- Input directory  = " + paths.inputDir);
         System.out.println("- Output directory = " + paths.outputDir);
-        System.out.println("- Stage directory  = " + paths.stageDir);
+        if (setup.stageFiles) {
+            System.out.println("- Stage directory  = " + paths.stageDir);
+        }
         System.out.println("- Number of files  = " + paths.inputFiles.size());
         System.out.println("****************************************");
     }
