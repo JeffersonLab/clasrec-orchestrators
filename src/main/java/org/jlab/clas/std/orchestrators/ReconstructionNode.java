@@ -140,11 +140,6 @@ class ReconstructionNode {
 
 
     void openFiles() {
-        openFiles(0);
-    }
-
-
-    void openFiles(int frequency) {
         startTime = 0;
         eventNumber = 0;
         totalEvents = 0;
@@ -169,7 +164,10 @@ class ReconstructionNode {
         outputConfig.put("order", fileOrder);
         outputConfig.put("overwrite", true);
         syncConfig(writerName, outputConfig, 5, TimeUnit.MINUTES);
+    }
 
+
+    void setReportFrequency(int frequency) {
         // set "report done" frequency
         if (frequency <= 0) {
             return;

@@ -326,7 +326,8 @@ public final class LocalOrchestrator {
 
     private void start() {
         ioNode.setFiles(paths.inputFile, paths.outputFile);
-        ioNode.openFiles(options.reportFreq);
+        ioNode.openFiles();
+        ioNode.setReportFrequency(options.reportFreq);
 
         ErrorHandlerCB errorHandler = new ErrorHandlerCB();
         orchestrator.subscribeErrors(ioNode.containerName, errorHandler);
