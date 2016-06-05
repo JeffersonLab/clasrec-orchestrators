@@ -623,6 +623,10 @@ public final class CloudOrchestrator {
             }
             node.openFiles();
 
+            int fileCounter = processedFilesCounter.get() + 1;
+            int totalFiles = paths.inputFiles.size();
+            node.setFileCounter(fileCounter, totalFiles);
+
             List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
             int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
             node.sendEventsToDpe(dpe.name, recChain, threads);

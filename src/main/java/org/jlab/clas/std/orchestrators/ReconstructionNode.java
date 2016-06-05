@@ -32,6 +32,9 @@ class ReconstructionNode {
     String currentInputFile;
     String currentOutputFile;
 
+    int currentFileCounter;
+    int totalFilesCounter;
+
     int totalEvents;
     int eventNumber;
     long startTime;
@@ -101,6 +104,11 @@ class ReconstructionNode {
         currentInputFile = inputFile;
         currentOutputFile = outputFile;
         currentInputFileName = new File(inputFile).getName();
+    }
+
+    void setFileCounter(int currentFile, int totalFiles) {
+        currentFileCounter = currentFile;
+        totalFilesCounter = totalFiles;
     }
 
 
@@ -229,8 +237,9 @@ class ReconstructionNode {
             startTime = System.currentTimeMillis();
         }
 
-        Logging.info("Using %d cores on %s to reconstruct %d events of %s",
-                      dpeCores, dpeName, totalEvents, currentInputFileName);
+        Logging.info("Using %d cores on %s to reconstruct %d events of %s [%d/%d]",
+                      dpeCores, dpeName, totalEvents, currentInputFileName,
+                      currentFileCounter, totalFilesCounter);
 
         int requestId = 1;
         for (int i = 0; i < dpeCores; i++) {
