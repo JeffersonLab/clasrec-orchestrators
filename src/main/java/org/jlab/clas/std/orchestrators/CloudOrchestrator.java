@@ -1,37 +1,14 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.jlab.clara.base.ClaraUtil;
-import org.jlab.clara.base.DpeName;
-import org.jlab.clara.base.EngineCallback;
-import org.jlab.clara.base.ServiceName;
-import org.jlab.clara.base.error.ClaraException;
-import org.jlab.clara.engine.EngineData;
-import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.ReconstructionOrchestrator.DpeCallBack;
-import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 
 import com.martiansoftware.jsap.FlaggedOption;
@@ -41,24 +18,9 @@ import com.martiansoftware.jsap.JSAPResult;
 import com.martiansoftware.jsap.Switch;
 import com.martiansoftware.jsap.UnflaggedOption;
 
-public final class CloudOrchestrator {
+public final class CloudOrchestrator extends AbstractOrchestrator {
 
-    private final ReconstructionOrchestrator orchestrator;
-
-    private final CloudSetup setup;
-    private final CloudPaths paths;
-    private final CloudStats stats;
-
-    private final Set<ReconstructionNode> nodes;
-    private final BlockingQueue<ReconstructionNode> freeNodes;
-    private final ExecutorService nodesExecutor;
-
-    private final BlockingQueue<String> processingQueue = new LinkedBlockingQueue<String>();
-    private final AtomicInteger processedFilesCounter = new AtomicInteger();
-
-    private final Semaphore recSem;
-    private volatile boolean recStat;
-    private volatile String recMsg = "Could not run reconstruction!";
+    private final Set<ReconstructionNode> nodes = new HashSet<>();
 
     public static void main(String[] args) {
         try {
@@ -102,13 +64,13 @@ public final class CloudOrchestrator {
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
 
-        private int poolSize = CloudSetup.DEFAULT_POOLSIZE;
-        private int maxThreads = CloudSetup.MAX_THREADS;
-        private int maxNodes = CloudSetup.MAX_NODES;
+        private int poolSize = ReconstructionSetup.DEFAULT_POOLSIZE;
+        private int maxThreads = ReconstructionSetup.MAX_THREADS;
+        private int maxNodes = ReconstructionSetup.MAX_NODES;
 
-        private String inputDir = CloudPaths.INPUT_DIR;
-        private String outputDir = CloudPaths.OUTPUT_DIR;
-        private String stageDir = CloudPaths.STAGE_DIR;
+        private String inputDir = ReconstructionPaths.INPUT_DIR;
+        private String outputDir = ReconstructionPaths.OUTPUT_DIR;
+        private String stageDir = ReconstructionPaths.STAGE_DIR;
 
         /**
          * Sets the required arguments to start a reconstruction.
@@ -247,219 +209,34 @@ public final class CloudOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
-                                              stageFiles, poolSize, maxNodes, maxThreads);
-            CloudPaths paths = new CloudPaths(inputFiles, inputDir, outputDir, stageDir);
+            ReconstructionSetup setup = new ReconstructionSetup(
+                    recChain, "localhost", frontEnd, useFrontEnd,
+                    stageFiles, poolSize, maxNodes, maxThreads);
+            ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
+                    inputDir, outputDir, stageDir);
             return new CloudOrchestrator(setup, paths);
         }
     }
 
 
-    private static class CloudSetup {
-
-        final String localHost;
-        final String frontEnd;
-        final List<ServiceInfo> recChain;
-        final boolean useFrontEnd;
-        final boolean stageFiles;
-        final int poolSize;
-        final int maxNodes;
-        final int maxThreads;
-
-        static final int DEFAULT_POOLSIZE = 32;
-        static final int MAX_NODES = 512;
-        static final int MAX_THREADS = 64;
-
-        CloudSetup(List<ServiceInfo> recChain,
-                   String localhost,
-                   String frontEnd,
-                   boolean useFrontEnd,
-                   boolean stageFiles,
-                   int poolSize,
-                   int maxNodes,
-                   int maxThreads) {
-            this.localHost = ReconstructionConfigParser.hostAddress(localhost);
-            this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
-            this.recChain = recChain;
-            this.useFrontEnd = useFrontEnd;
-            this.stageFiles = stageFiles;
-            this.poolSize = poolSize;
-            this.maxNodes = maxNodes;
-            this.maxThreads = maxThreads;
-        }
-
-        CloudSetup(String frontEnd, List<ServiceInfo> recChain) {
-            this(recChain, "localhost", frontEnd, true, true,
-                 DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
-        }
+    private CloudOrchestrator(ReconstructionSetup setup, ReconstructionPaths paths) {
+        super(setup, paths);
+        Logging.verbose(true);
     }
 
 
-    private static class CloudPaths {
-
-        static final String DATA_DIR = System.getenv("CLARA_HOME") + File.separator + "data";
-        static final String CACHE_DIR = "/mss/hallb/exp/raw";
-        static final String INPUT_DIR = DATA_DIR + File.separator + "in";
-        static final String OUTPUT_DIR = DATA_DIR + File.separator + "out";
-        static final String STAGE_DIR = File.separator + "scratch";
-
-        final String inputDir;
-        final String outputDir;
-        final String stageDir;
-
-        final List<String> inputFiles;
-        final BlockingQueue<String> requestedFiles;
-
-        CloudPaths(List<String> inputFiles,
-                   String inputDir,
-                   String outputDir,
-                   String stageDir) {
-            this.inputFiles = inputFiles;
-            this.inputDir = inputDir;
-            this.outputDir = outputDir;
-            this.stageDir = stageDir;
-
-            this.requestedFiles = new LinkedBlockingDeque<String>();
-            for (String name : inputFiles) {
-                this.requestedFiles.add(inputDir + File.separator + name);
-            }
-        }
+    @Override
+    void start() {
+        printStartup();
+        Logging.info("Waiting for reconstruction nodes...");
+        orchestrator.listenDpes(new DpeReportCB());
     }
 
 
-    private static class CloudStats {
-
-        private final Map<ReconstructionNode, NodeStats> recStats = new ConcurrentHashMap<>();
-        private AtomicInteger events = new AtomicInteger();
-        private AtomicLong startTime = new AtomicLong();
-        private AtomicLong endTime = new AtomicLong();
-
-        private static class NodeStats {
-            private int events = 0;
-            private long totalTime = 0;
-        }
-
-        public void add(ReconstructionNode node) {
-            recStats.put(node, new NodeStats());
-        }
-
-        public void startClock() {
-            startTime.compareAndSet(0, System.currentTimeMillis());
-        }
-
-        public void stopClock() {
-            endTime.set(System.currentTimeMillis());
-        }
-
-        public void update(ReconstructionNode node, int recEvents, long recTime) {
-            NodeStats nodeStats = recStats.get(node);
-            nodeStats.events += recEvents;
-            nodeStats.totalTime += recTime;
-            events.addAndGet(recEvents);
-        }
-
-        public double localAverage() {
-            double avgSum = 0;
-            int avgCount = 0;
-            for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
-                NodeStats stat = entry.getValue();
-                if (stat.events > 0) {
-                    avgSum += stat.totalTime / (double) stat.events;
-                    avgCount++;
-                }
-            }
-            return avgSum / avgCount;
-        }
-
-        public double globalAverage() {
-            double recTime = endTime.get() - startTime.get();
-            return recTime / events.get();
-        }
-    }
-
-
-    private CloudOrchestrator(CloudSetup setup, CloudPaths paths) {
-        try {
-            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, setup.poolSize);
-            orchestrator.setReconstructionChain(setup.recChain);
-
-            this.setup = setup;
-            this.paths = paths;
-            this.nodes = new HashSet<>();
-            this.freeNodes = new LinkedBlockingQueue<>();
-
-            this.nodesExecutor = Executors.newCachedThreadPool();
-            this.recSem = new Semaphore(1);
-            this.stats = new CloudStats();
-
-            Logging.verbose(true);
-        } catch (ClaraException | IOException e) {
-            throw new OrchestratorError("Could not connect to Clara", e);
-        }
-    }
-
-
-    /**
-     * Runs the reconstruction.
-     *
-     * @return status of the reconstruction.
-     * @throws OrchestratorError in case of any error that aborted the reconstruction
-     */
-    public boolean run() {
-        try {
-            printStartup();
-            Logging.info("Waiting for reconstruction nodes...");
-            orchestrator.listenDpes(new DpeReportCB());
-            checkFiles();
-            startRec();
-            waitRec();
-            end();
-            return recStat;
-        } catch (OrchestratorError e) {
-            // cleanup();
-            end();
-            throw e;
-        }
-    }
-
-
-    private void startRec() {
-        try {
-            recSem.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Could not block processing.");
-        }
-        try {
-            processAllFiles();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Interrupted");
-        }
-    }
-
-
-    private void waitRec() {
-        try {
-            recSem.acquire();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            recMsg = "Processing interrupted...";
-        }
-    }
-
-
-    private void exitRec(boolean status, String msg) {
-        recStat = status;
-        recMsg = msg;
-        recSem.release();
-    }
-
-
-    private void end() {
+    @Override
+    void end() {
         Logging.info("Local  average event processing time = %.2f ms", stats.localAverage());
         Logging.info("Global average event processing time = %.2f ms", stats.globalAverage());
-
-        nodesExecutor.shutdown();
-        Logging.info(recMsg);
     }
 
 
@@ -494,9 +271,8 @@ public final class CloudOrchestrator {
                 }
                 if (!nodes.contains(node)) {
                     try {
-                        nodesExecutor.execute(() -> setupNode(node));
+                        executeSetup(node);
                         nodes.add(node);
-                        stats.add(node);
                     } catch (RejectedExecutionException e) {
                         // ignore
                     }
@@ -510,195 +286,6 @@ public final class CloudOrchestrator {
                 return true;
             }
             return false;
-        }
-    }
-
-
-    private void setupNode(ReconstructionNode node) {
-        try {
-            Logging.info("Start processing on " + node.dpe.name + "...");
-            orchestrator.deployInputOutputServices(node.dpe, 1);
-            orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
-            orchestrator.checkInputOutputServices(node.dpe);
-            orchestrator.checkReconstructionServices(node.dpe);
-            orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));
-            Logging.info("All services deployed on " + node.dpe.name);
-
-            if (setup.stageFiles) {
-                node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
-            }
-            // TODO send proper configuration data
-            EngineData configData = new EngineData();
-            configData.setData(EngineDataType.STRING.mimeType(), "config");
-            List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
-            for (ServiceName recService : recChain) {
-                node.configureService(recService, configData);
-            }
-            Logging.info("All services configured on " + node.dpe.name);
-
-            freeNodes.add(node);
-        } catch (OrchestratorError e) {
-            Logging.error("Could not use %s for reconstruction%n%s",
-                          node.dpe.name, e.getMessage());
-        }
-    }
-
-
-    private void checkFiles() {
-        if (setup.stageFiles) {
-            Logging.info("Monitoring files on input directory...");
-            new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
-        } else {
-            for (String input : paths.requestedFiles) {
-                processingQueue.add(input);
-            }
-        }
-    }
-
-
-    private class FileMonitoringWorker implements Runnable {
-
-        @Override
-        public void run() {
-            while (!paths.requestedFiles.isEmpty()) {
-                Path filePath = Paths.get(paths.requestedFiles.element());
-                if (filePath.toFile().exists()) {
-                    Path fileName = filePath.getFileName();
-                    if (fileName == null) {
-                        Logging.error("Empty file path");
-                        paths.requestedFiles.remove();
-                        continue;
-                    }
-                    processingQueue.add(fileName.toString());
-                    paths.requestedFiles.remove();
-                    Logging.info(filePath + " is cached.");
-                } else {
-                    orchestrator.sleep(100);
-                }
-            }
-        }
-    }
-
-
-    private void processAllFiles() throws InterruptedException {
-        if (setup.maxNodes < CloudSetup.MAX_NODES) {
-            while (freeNodes.size() < setup.maxNodes) {
-                orchestrator.sleep(100);
-            }
-        }
-        while (processedFilesCounter.get() < paths.inputFiles.size()) {
-            String filePath = processingQueue.peek();
-            if (filePath == null) {
-                orchestrator.sleep(100);
-                continue;
-            }
-            // TODO check if file exists
-            final String fileName = new File(filePath).getName();
-
-            final ReconstructionNode node = freeNodes.poll(60, TimeUnit.SECONDS);
-            if (node != null) {
-                try {
-                    nodesExecutor.execute(() -> processFile(node, fileName));
-                    processingQueue.remove();
-                } catch (RejectedExecutionException e) {
-                    freeNodes.add(node);
-                }
-            }
-        }
-    }
-
-
-    private void processFile(ReconstructionNode node, String inputFile) {
-        try {
-            stats.startClock();
-            DpeInfo dpe = node.dpe;
-
-            // TODO check DPE is alive
-            if (setup.stageFiles) {
-                node.setFiles(inputFile);
-            } else {
-                String inputFileName = paths.inputDir + File.separator + inputFile;
-                String outputFileName = paths.outputDir + File.separator + "out_" + inputFile;
-                node.setFiles(inputFileName, outputFileName);
-            }
-            node.openFiles();
-
-            int fileCounter = processedFilesCounter.get() + 1;
-            int totalFiles = paths.inputFiles.size();
-            node.setFileCounter(fileCounter, totalFiles);
-
-            List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
-            int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
-            node.sendEventsToDpe(dpe.name, recChain, threads);
-        } catch (OrchestratorError e) {
-            Logging.error("Could not use %s for reconstruction%n%s", node.dpe.name, e.getMessage());
-        }
-    }
-
-
-    private void printAverage(ReconstructionNode node) {
-        long endTime = System.currentTimeMillis();
-        long recTime = endTime - node.startTime;
-        double timePerEvent = recTime / (double) node.totalEvents;
-        stats.update(node, node.totalEvents, recTime);
-        Logging.info("Finished file %s on %s. Average event time = %.2f ms",
-                     node.currentInputFileName, node.dpe.name, timePerEvent);
-    }
-
-
-    private void processFinishedFile(ReconstructionNode node) {
-        try {
-            String currentFile = node.currentInputFileName;
-            node.closeFiles();
-            if (setup.stageFiles) {
-                node.saveOutputFile();
-                Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
-            }
-        } catch (OrchestratorError e) {
-            Logging.error("Could not close files on %s%n%s", node.dpe.name, e.getMessage());
-        } finally {
-            int counter = processedFilesCounter.incrementAndGet();
-            if (counter == paths.inputFiles.size()) {
-                stats.stopClock();
-                exitRec(true, "Processing is complete.");
-            } else {
-                freeNodes.add(node);
-            }
-        }
-    }
-
-
-    private class ErrorHandlerCB implements EngineCallback {
-
-        private final ReconstructionNode node;
-
-        ErrorHandlerCB(ReconstructionNode node) {
-            this.node = node;
-        }
-
-        @Override
-        public void callback(EngineData data) {
-            ServiceName source = new ServiceName(data.getEngineName());
-            DpeName host = source.dpe();
-            int requestId = data.getCommunicationId();
-            int severity = data.getStatusSeverity();
-            String description = data.getDescription();
-            if (description.equalsIgnoreCase("End of File")) {
-                if (severity == 2) {
-                    printAverage(node);
-                    processFinishedFile(node);
-                }
-            } else if (description.startsWith("Error opening the file")) {
-                Logging.error(description);
-            } else {
-                try {
-                    Logging.error("Error in %s (ID: %d):%n%s", source, requestId, description);
-                    List<ServiceName> chain = orchestrator.generateReconstructionChain(node.dpe);
-                    node.requestEvent(host, chain, requestId, "next-rec");
-                } catch (OrchestratorError e) {
-                    Logging.error(e.getMessage());
-                }
-            }
         }
     }
 
@@ -759,9 +346,10 @@ public final class CloudOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            CloudSetup setup = new CloudSetup(recChain, "localhost", frontEnd, useFrontEnd,
-                                              stageFiles, poolSize, maxNodes, maxThreads);
-            CloudPaths paths = new CloudPaths(inFiles, inDir, outDir, tmpDir);
+            ReconstructionSetup setup = new ReconstructionSetup(
+                    recChain, "localhost", frontEnd, useFrontEnd,
+                    stageFiles, poolSize, maxNodes, maxThreads);
+            ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
 
             return new CloudOrchestrator(setup, paths);
         }
@@ -786,48 +374,48 @@ public final class CloudOrchestrator {
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('c')
-                    .setDefault(CloudPaths.CACHE_DIR);
+                    .setDefault(ReconstructionPaths.CACHE_DIR);
             tapeDir.setHelp("The tape directory where from files are cached.");
 
             FlaggedOption inputDir = new FlaggedOption(ARG_INPUT_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('i')
-                    .setDefault(CloudPaths.INPUT_DIR);
+                    .setDefault(ReconstructionPaths.INPUT_DIR);
             inputDir.setHelp("The input directory where the files to be processed are located.");
 
             FlaggedOption outputDir = new FlaggedOption(ARG_OUTPUT_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('o')
-                    .setDefault(CloudPaths.OUTPUT_DIR);
+                    .setDefault(ReconstructionPaths.OUTPUT_DIR);
             outputDir.setHelp("The output directory where reconstructed files will be saved.");
 
             FlaggedOption stageDir = new FlaggedOption(ARG_STAGE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('s')
-                    .setDefault(CloudPaths.STAGE_DIR);
+                    .setDefault(ReconstructionPaths.STAGE_DIR);
             stageDir.setHelp("The stage directory where the local temporary files will be stored.");
 
             FlaggedOption poolSize = new FlaggedOption(ARG_POOL_SIZE)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('p')
-                    .setDefault(String.valueOf(CloudSetup.DEFAULT_POOLSIZE))
+                    .setDefault(String.valueOf(ReconstructionSetup.DEFAULT_POOLSIZE))
                     .setRequired(false);
             poolSize.setHelp("The size of the thread-pool processing service and node reports.");
 
             FlaggedOption maxNodes = new FlaggedOption(ARG_MAX_NODES)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('n')
-                    .setDefault(String.valueOf(CloudSetup.MAX_NODES))
+                    .setDefault(String.valueOf(ReconstructionSetup.MAX_NODES))
                     .setRequired(false);
             maxNodes.setHelp("The maximum number of reconstruction nodes to be used.");
 
             FlaggedOption maxThreads = new FlaggedOption(ARG_MAX_THREADS)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('t')
-                    .setDefault(String.valueOf(CloudSetup.MAX_THREADS))
+                    .setDefault(String.valueOf(ReconstructionSetup.MAX_THREADS))
                     .setRequired(false);
             maxThreads.setHelp("The maximum number of reconstruction threads to be used per node.");
 
@@ -876,8 +464,8 @@ public final class CloudOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            CloudSetup setup = new CloudSetup(frontEnd, recChain);
-            CloudPaths paths = new CloudPaths(inFiles,
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain);
+            ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),
                                               parser.parseDirectory("tmp"));
