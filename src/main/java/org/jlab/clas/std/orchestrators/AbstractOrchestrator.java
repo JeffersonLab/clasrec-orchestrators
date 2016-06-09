@@ -101,7 +101,7 @@ abstract class AbstractOrchestrator {
         final String outputDir;
         final String stageDir;
 
-        final List<String> inputFiles;
+        private final List<String> inputFiles;
         final BlockingQueue<String> requestedFiles;
 
         ReconstructionPaths(List<String> inputFiles,
@@ -117,6 +117,10 @@ abstract class AbstractOrchestrator {
             for (String name : inputFiles) {
                 this.requestedFiles.add(inputDir + File.separator + name);
             }
+        }
+
+        int numFiles() {
+            return inputFiles.size();
         }
     }
 
@@ -338,7 +342,7 @@ abstract class AbstractOrchestrator {
                 orchestrator.sleep(100);
             }
         }
-        while (processedFilesCounter.get() < paths.inputFiles.size()) {
+        while (processedFilesCounter.get() < paths.numFiles()) {
             String filePath = processingQueue.peek();
             if (filePath == null) {
                 orchestrator.sleep(100);
@@ -376,7 +380,7 @@ abstract class AbstractOrchestrator {
             node.openFiles();
 
             int fileCounter = processedFilesCounter.get() + 1;
-            int totalFiles = paths.inputFiles.size();
+            int totalFiles = paths.numFiles();
             node.setFileCounter(fileCounter, totalFiles);
 
             List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
@@ -410,7 +414,7 @@ abstract class AbstractOrchestrator {
             Logging.error("Could not close files on %s%n%s", node.dpe.name, e.getMessage());
         } finally {
             int counter = processedFilesCounter.incrementAndGet();
-            if (counter == paths.inputFiles.size()) {
+            if (counter == paths.numFiles()) {
                 stats.stopClock();
                 exitRec(true, "Processing is complete.");
             } else {

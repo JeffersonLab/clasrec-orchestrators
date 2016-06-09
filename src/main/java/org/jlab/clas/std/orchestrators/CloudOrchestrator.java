@@ -254,7 +254,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         if (setup.stageFiles) {
             System.out.println("- Stage directory  = " + paths.stageDir);
         }
-        System.out.println("- Number of files  = " + paths.inputFiles.size());
+        System.out.println("- Number of files  = " + paths.numFiles());
         System.out.println("****************************************");
     }
 
