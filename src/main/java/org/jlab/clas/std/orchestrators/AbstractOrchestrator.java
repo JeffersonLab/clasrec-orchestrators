@@ -323,7 +323,7 @@ abstract class AbstractOrchestrator {
                 if (filePath.toFile().exists()) {
                     processingQueue.add(filePath.toString());
                     paths.requestedFiles.remove();
-                    Logging.info(filePath + " is cached.");
+                    Logging.info("File %s is cached", filePath);
                 } else {
                     orchestrator.sleep(100);
                 }
