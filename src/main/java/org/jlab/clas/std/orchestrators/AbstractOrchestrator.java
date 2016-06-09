@@ -321,13 +321,7 @@ abstract class AbstractOrchestrator {
             while (!paths.requestedFiles.isEmpty()) {
                 Path filePath = Paths.get(paths.requestedFiles.element());
                 if (filePath.toFile().exists()) {
-                    Path fileName = filePath.getFileName();
-                    if (fileName == null) {
-                        Logging.error("Empty file path");
-                        paths.requestedFiles.remove();
-                        continue;
-                    }
-                    processingQueue.add(fileName.toString());
+                    processingQueue.add(filePath.toString());
                     paths.requestedFiles.remove();
                     Logging.info(filePath + " is cached.");
                 } else {
