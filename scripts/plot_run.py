@@ -141,7 +141,7 @@ class Parser:
         time = self._get_logtime(tokens)
         ip = tokens[6]
         events = tokens[9]
-        name = tokens[-1]
+        name = tokens[-2]
 
         node = self.nodes[ip]
         infile = File(name, events, node)

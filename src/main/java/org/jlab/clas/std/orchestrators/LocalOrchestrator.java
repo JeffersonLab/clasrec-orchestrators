@@ -202,7 +202,10 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             long endTime = System.currentTimeMillis();
             double totalTime = (endTime - ioNode.startTime.get());
             double timePerEvent = totalTime /  totalEvents;
-            Logging.info("Average event processing time = %.2f ms", timePerEvent);
+            Logging.info("  Processed  %5d events  " +
+                         "  total time = %7.2f s  " +
+                         "  average event time = %6.2f ms",
+                         totalEvents, totalTime / 1000L, timePerEvent);
         }
     }
 
