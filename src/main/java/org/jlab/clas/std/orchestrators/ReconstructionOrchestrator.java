@@ -12,6 +12,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 import org.jlab.clara.base.BaseOrchestrator;
 import org.jlab.clara.base.ClaraLang;
@@ -26,10 +27,14 @@ import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
+import org.jlab.coda.xmsg.core.xMsg;
 import org.jlab.coda.xmsg.core.xMsgConstants;
+import org.jlab.coda.xmsg.core.xMsgMessage;
 import org.jlab.coda.xmsg.core.xMsgTopic;
+import org.jlab.coda.xmsg.data.xMsgMimeType;
 import org.jlab.coda.xmsg.data.xMsgR.xMsgRegistration;
 import org.jlab.coda.xmsg.excp.xMsgException;
+import org.jlab.coda.xmsg.net.xMsgProxyAddress;
 import org.jlab.coda.xmsg.net.xMsgRegAddress;
 import org.jlab.coda.xmsg.net.xMsgSocketFactory;
 import org.jlab.coda.xmsg.sys.regdis.xMsgRegDriver;
@@ -469,6 +474,25 @@ class ReconstructionOrchestrator {
             return driver.filterRegistration(base.getName(), data);
         } finally {
             driver.close();
+        }
+    }
+
+    // TODO: this should be provided by Clara
+    String getReport(DpeInfo fe) {
+        xMsgProxyAddress address = fe.name.address();
+        try (xMsg actor = new xMsg("reportQuery")) {
+            xMsgTopic xtopic = xMsgTopic.build("dpe", fe.name.canonicalName());
+            String xdata = "reportRuntime";
+            xMsgMessage xmsg = new xMsgMessage(xtopic, xMsgMimeType.STRING, xdata.getBytes());
+            xMsgMessage response = actor.syncPublish(address, xmsg, 30000);
+            String mimeType = response.getMimeType();
+            if (mimeType.equals(xMsgMimeType.STRING)) {
+                return new String(response.getData());
+            } else {
+                throw new OrchestratorError("Could not obtain report snapshot");
+            }
+        } catch (xMsgException | TimeoutException e) {
+            throw new OrchestratorError("Could not obtain report snapshot");
         }
     }
 }
