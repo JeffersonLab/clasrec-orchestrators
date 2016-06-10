@@ -43,6 +43,7 @@ abstract class AbstractOrchestrator {
     private final ExecutorService nodesExecutor;
 
     private final BlockingQueue<ReconstructionFile> processingQueue = new LinkedBlockingQueue<>();
+    private final AtomicInteger startedFilesCounter = new AtomicInteger();
     private final AtomicInteger processedFilesCounter = new AtomicInteger();
 
     private final Semaphore recSem;
@@ -515,7 +516,7 @@ abstract class AbstractOrchestrator {
     void startFile(ReconstructionNode node) {
         node.setReportFrequency(options.reportFreq);
 
-        int fileCounter = processedFilesCounter.get() + 1;
+        int fileCounter = startedFilesCounter.incrementAndGet();
         int totalFiles = paths.numFiles();
         node.setFileCounter(fileCounter, totalFiles);
 
