@@ -528,9 +528,9 @@ abstract class AbstractOrchestrator {
 
     void printAverage(ReconstructionNode node) {
         long endTime = System.currentTimeMillis();
-        long recTime = endTime - node.startTime;
-        double timePerEvent = recTime / (double) node.totalEvents;
-        stats.update(node, node.totalEvents, recTime);
+        long recTime = endTime - node.startTime.get();
+        double timePerEvent = recTime / (double) node.totalEvents.get();
+        stats.update(node, node.totalEvents.get(), recTime);
         Logging.info("Finished file %s on %s. Average event time = %.2f ms",
                      node.currentInputFileName, node.dpe.name, timePerEvent);
     }

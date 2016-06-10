@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.jlab.clara.base.Composition;
 import org.jlab.clara.base.ContainerName;
@@ -32,12 +34,12 @@ class ReconstructionNode {
     String currentInputFile;
     String currentOutputFile;
 
-    int currentFileCounter;
-    int totalFilesCounter;
+    AtomicInteger currentFileCounter = new AtomicInteger();
+    AtomicInteger totalFilesCounter = new AtomicInteger();
 
-    int totalEvents;
-    int eventNumber;
-    long startTime;
+    AtomicInteger totalEvents = new AtomicInteger();
+    AtomicInteger eventNumber = new AtomicInteger();
+    AtomicLong startTime = new AtomicLong();
 
 
     ReconstructionNode(ReconstructionOrchestrator orchestrator, DpeInfo dpe) {
@@ -107,8 +109,8 @@ class ReconstructionNode {
     }
 
     void setFileCounter(int currentFile, int totalFiles) {
-        currentFileCounter = currentFile;
-        totalFilesCounter = totalFiles;
+        currentFileCounter.set(currentFile);
+        totalFilesCounter.set(totalFiles);
     }
 
 
@@ -148,9 +150,9 @@ class ReconstructionNode {
 
 
     void openFiles() {
-        startTime = 0;
-        eventNumber = 0;
-        totalEvents = 0;
+        startTime.set(0);
+        eventNumber.set(0);
+        totalEvents.set(0);
 
         // open input file
         Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
@@ -160,7 +162,7 @@ class ReconstructionNode {
         syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
 
         // total number of events in the file
-        totalEvents = requestNumberOfEvents();
+        totalEvents.set(requestNumberOfEvents());
 
         // endiannes of the file
         String fileOrder = requestFileOrder();
@@ -233,13 +235,11 @@ class ReconstructionNode {
 
 
     void sendEventsToDpe(DpeName dpeName, List<ServiceName> chain, int dpeCores) {
-        if (startTime == 0) {
-            startTime = System.currentTimeMillis();
-        }
+        startTime.compareAndSet(0, System.currentTimeMillis());
 
         Logging.info("Using %d cores on %s to reconstruct %d events of %s [%d/%d]",
-                      dpeCores, dpeName, totalEvents, currentInputFileName,
-                      currentFileCounter, totalFilesCounter);
+                      dpeCores, dpeName, totalEvents.get(), currentInputFileName,
+                      currentFileCounter.get(), totalFilesCounter.get());
 
         int requestId = 1;
         for (int i = 0; i < dpeCores; i++) {

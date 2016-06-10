@@ -198,9 +198,10 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
 
         @Override
         public void callback(EngineData data) {
+            int totalEvents = ioNode.eventNumber.addAndGet(options.reportFreq);
             long endTime = System.currentTimeMillis();
-            ioNode.eventNumber += options.reportFreq;
-            double timePerEvent = (endTime - ioNode.startTime) /  (double) ioNode.eventNumber;
+            double totalTime = (endTime - ioNode.startTime.get());
+            double timePerEvent = totalTime /  totalEvents;
             Logging.info("Average event processing time = %.2f ms", timePerEvent);
         }
     }
