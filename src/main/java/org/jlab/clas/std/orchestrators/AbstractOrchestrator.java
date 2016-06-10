@@ -298,7 +298,7 @@ abstract class AbstractOrchestrator {
      */
     void setupNode(ReconstructionNode node) {
         try {
-            Logging.info("Start processing on " + node.dpe.name + "...");
+            Logging.info("Start processing on %s...", node.dpe.name);
             orchestrator.deployInputOutputServices(node.dpe, 1);
             orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
             orchestrator.checkInputOutputServices(node.dpe);
@@ -306,6 +306,7 @@ abstract class AbstractOrchestrator {
             Logging.info("All services deployed on " + node.dpe.name);
             subscribe(node);
 
+            Logging.info("Configuring services on %s...", node.dpe.name);
             if (setup.stageFiles) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
@@ -316,7 +317,7 @@ abstract class AbstractOrchestrator {
             for (ServiceName recService : recChain) {
                 node.configureService(recService, configData);
             }
-            Logging.info("All services configured on " + node.dpe.name);
+            Logging.info("All services configured on %s", node.dpe.name);
 
             freeNodes.add(node);
             stats.add(node);
