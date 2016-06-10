@@ -418,26 +418,33 @@ abstract class AbstractOrchestrator {
     void processFile(ReconstructionNode node, ReconstructionFile recFile) {
         try {
             stats.startClock();
-            DpeInfo dpe = node.dpe;
-
             // TODO check DPE is alive
-            if (setup.stageFiles) {
-                node.setFiles(recFile.inputName);
-            } else {
-                node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
-            }
-            node.openFiles();
-
-            int fileCounter = processedFilesCounter.get() + 1;
-            int totalFiles = paths.numFiles();
-            node.setFileCounter(fileCounter, totalFiles);
-
-            List<ServiceName> recChain = orchestrator.generateReconstructionChain(dpe);
-            int threads = dpe.cores <= setup.maxThreads ? dpe.cores : setup.maxThreads;
-            node.sendEventsToDpe(dpe.name, recChain, threads);
+            openFiles(node, recFile);
+            startFile(node);
         } catch (OrchestratorError e) {
             Logging.error("Could not use %s for reconstruction%n%s", node.dpe.name, e.getMessage());
         }
+    }
+
+
+    void openFiles(ReconstructionNode node, ReconstructionFile recFile) {
+        if (setup.stageFiles) {
+            node.setFiles(recFile.inputName);
+        } else {
+            node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
+        }
+        node.openFiles();
+    }
+
+
+    void startFile(ReconstructionNode node) {
+        int fileCounter = processedFilesCounter.get() + 1;
+        int totalFiles = paths.numFiles();
+        node.setFileCounter(fileCounter, totalFiles);
+
+        List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
+        int threads = node.dpe.cores <= setup.maxThreads ? node.dpe.cores : setup.maxThreads;
+        node.sendEventsToDpe(node.dpe.name, recChain, threads);
     }
 
 
