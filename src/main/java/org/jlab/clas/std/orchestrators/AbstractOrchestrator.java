@@ -220,6 +220,32 @@ abstract class AbstractOrchestrator {
             events.addAndGet(recEvents);
         }
 
+        long totalEvents() {
+            long sum = 0;
+            for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
+                NodeStats stat = entry.getValue();
+                if (stat.events > 0) {
+                    sum += stat.events;
+                }
+            }
+            return sum;
+        }
+
+        long totalTime() {
+            long sum = 0;
+            for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
+                NodeStats stat = entry.getValue();
+                if (stat.events > 0) {
+                    sum += stat.totalTime;
+                }
+            }
+            return sum;
+        }
+
+        long globalTime() {
+            return endTime.get() - startTime.get();
+        }
+
         double localAverage() {
             double avgSum = 0;
             int avgCount = 0;
