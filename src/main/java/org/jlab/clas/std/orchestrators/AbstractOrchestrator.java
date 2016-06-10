@@ -71,6 +71,7 @@ abstract class AbstractOrchestrator {
         final int poolSize;
         final int maxNodes;
         final int maxThreads;
+        final int reportFreq;
 
         static final int DEFAULT_POOLSIZE = 32;
         static final int MAX_NODES = 512;
@@ -84,6 +85,20 @@ abstract class AbstractOrchestrator {
         }
 
         /**
+         * LocalOrchestrator options.
+         */
+        ReconstructionOptions(boolean stageFiles,
+                              int poolSize,
+                              int maxThreads,
+                              int reportFreq) {
+            this.useFrontEnd = true;
+            this.stageFiles = stageFiles;
+            this.poolSize = poolSize;
+            this.maxNodes = 1;
+            this.maxThreads = maxThreads;
+            this.reportFreq = reportFreq;
+        }
+
         /**
          * CloudOrchestrator options.
          */
@@ -97,6 +112,7 @@ abstract class AbstractOrchestrator {
             this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
+            this.reportFreq = 0;
         }
     }
 
