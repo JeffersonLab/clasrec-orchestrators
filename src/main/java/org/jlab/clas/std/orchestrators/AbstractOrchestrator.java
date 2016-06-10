@@ -101,26 +101,28 @@ abstract class AbstractOrchestrator {
         final String outputDir;
         final String stageDir;
 
-        private final List<String> inputFiles;
-        final BlockingQueue<String> requestedFiles;
+        private final List<String> allFiles;
 
         ReconstructionPaths(List<String> inputFiles,
                             String inputDir,
                             String outputDir,
                             String stageDir) {
-            this.inputFiles = inputFiles;
             this.inputDir = inputDir;
             this.outputDir = outputDir;
             this.stageDir = stageDir;
+            this.allFiles = inputFiles;
+        }
 
-            this.requestedFiles = new LinkedBlockingDeque<String>();
-            for (String name : inputFiles) {
-                this.requestedFiles.add(inputDir + File.separator + name);
-            }
+        String inputFilePath(String inputFileName) {
+            return inputDir + File.separator + inputFileName;
+        }
+
+        String outputFilePath(String inputFileName) {
+            return outputDir + File.separator + "out_" + inputFileName;
         }
 
         int numFiles() {
-            return inputFiles.size();
+            return allFiles.size();
         }
     }
 
@@ -311,8 +313,8 @@ abstract class AbstractOrchestrator {
             Logging.info("Monitoring files on input directory...");
             new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
         } else {
-            for (String input : paths.requestedFiles) {
-                processingQueue.add(input);
+            for (String fileName : paths.allFiles) {
+                processingQueue.add(fileName);
             }
         }
     }
@@ -322,11 +324,16 @@ abstract class AbstractOrchestrator {
 
         @Override
         public void run() {
-            while (!paths.requestedFiles.isEmpty()) {
-                Path filePath = Paths.get(paths.requestedFiles.element());
+            BlockingQueue<String> requestedFiles = new LinkedBlockingDeque<>();
+            for (String fileName : paths.allFiles) {
+                requestedFiles.add(fileName);
+            }
+            while (!requestedFiles.isEmpty()) {
+                String fileName = requestedFiles.element();
+                Path filePath = Paths.get(paths.inputFilePath(fileName));
                 if (filePath.toFile().exists()) {
-                    processingQueue.add(filePath.toString());
-                    paths.requestedFiles.remove();
+                    processingQueue.add(fileName);
+                    requestedFiles.remove();
                     Logging.info("File %s is cached", filePath);
                 } else {
                     orchestrator.sleep(100);
@@ -343,14 +350,12 @@ abstract class AbstractOrchestrator {
             }
         }
         while (processedFilesCounter.get() < paths.numFiles()) {
-            String filePath = processingQueue.peek();
-            if (filePath == null) {
+            String fileName = processingQueue.peek();
+            if (fileName == null) {
                 orchestrator.sleep(100);
                 continue;
             }
             // TODO check if file exists
-            final String fileName = new File(filePath).getName();
-
             final ReconstructionNode node = freeNodes.poll(60, TimeUnit.SECONDS);
             if (node != null) {
                 try {
@@ -373,9 +378,7 @@ abstract class AbstractOrchestrator {
             if (setup.stageFiles) {
                 node.setFiles(inputFile);
             } else {
-                String inputFileName = paths.inputDir + File.separator + inputFile;
-                String outputFileName = paths.outputDir + File.separator + "out_" + inputFile;
-                node.setFiles(inputFileName, outputFileName);
+                node.setFiles(paths.inputFilePath(inputFile), paths.outputFilePath(inputFile));
             }
             node.openFiles();
 
