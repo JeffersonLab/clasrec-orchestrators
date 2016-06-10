@@ -64,9 +64,9 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
 
-        private int poolSize = ReconstructionSetup.DEFAULT_POOLSIZE;
-        private int maxThreads = ReconstructionSetup.MAX_THREADS;
-        private int maxNodes = ReconstructionSetup.MAX_NODES;
+        private int poolSize = ReconstructionOptions.DEFAULT_POOLSIZE;
+        private int maxThreads = ReconstructionOptions.MAX_THREADS;
+        private int maxNodes = ReconstructionOptions.MAX_NODES;
 
         private String inputDir = ReconstructionPaths.INPUT_DIR;
         private String outputDir = ReconstructionPaths.OUTPUT_DIR;
@@ -209,18 +209,21 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(
-                    recChain, "localhost", frontEnd, useFrontEnd,
-                    stageFiles, poolSize, maxNodes, maxThreads);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
                     inputDir, outputDir, stageDir);
-            return new CloudOrchestrator(setup, paths);
+            ReconstructionOptions options = new ReconstructionOptions(
+                    useFrontEnd, stageFiles,
+                    poolSize, maxNodes, maxThreads);
+            return new CloudOrchestrator(setup, paths, options);
         }
     }
 
 
-    private CloudOrchestrator(ReconstructionSetup setup, ReconstructionPaths paths) {
-        super(setup, paths);
+    private CloudOrchestrator(ReconstructionSetup setup,
+                              ReconstructionPaths paths,
+                              ReconstructionOptions options) {
+        super(setup, paths, options);
         Logging.verbose(true);
     }
 
@@ -247,11 +250,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         System.out.println("- Host         = " + setup.localHost);
         System.out.println("- Front-end    = " + setup.frontEnd);
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTimeInH());
-        System.out.println("- Pool size    = " + setup.poolSize);
+        System.out.println("- Pool size    = " + options.poolSize);
         System.out.println();
         System.out.println("- Input directory  = " + paths.inputDir);
         System.out.println("- Output directory = " + paths.outputDir);
-        if (setup.stageFiles) {
+        if (options.stageFiles) {
             System.out.println("- Stage directory  = " + paths.stageDir);
         }
         System.out.println("- Number of files  = " + paths.numFiles());
@@ -266,7 +269,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         public void callback(DpeInfo dpe) {
             final ReconstructionNode node = new ReconstructionNode(orchestrator, dpe);
             synchronized (nodes) {
-                if (nodes.size() == setup.maxNodes || filterNode(node)) {
+                if (nodes.size() == options.maxNodes || filterNode(node)) {
                     return;
                 }
                 if (!nodes.contains(node)) {
@@ -282,7 +285,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         private boolean filterNode(ReconstructionNode node) {
             String ip = node.dpe.name.address().host();
-            if (ip.equals(setup.frontEnd) && !setup.useFrontEnd) {
+            if (ip.equals(setup.frontEnd) && !options.useFrontEnd) {
                 return true;
             }
             return false;
@@ -346,12 +349,13 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            ReconstructionSetup setup = new ReconstructionSetup(
-                    recChain, "localhost", frontEnd, useFrontEnd,
-                    stageFiles, poolSize, maxNodes, maxThreads);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
+            ReconstructionOptions options = new ReconstructionOptions(
+                    useFrontEnd, stageFiles,
+                    poolSize, maxNodes, maxThreads);
 
-            return new CloudOrchestrator(setup, paths);
+            return new CloudOrchestrator(setup, paths, options);
         }
 
         private void setArguments(JSAP jsap) {
@@ -401,21 +405,21 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             FlaggedOption poolSize = new FlaggedOption(ARG_POOL_SIZE)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('p')
-                    .setDefault(String.valueOf(ReconstructionSetup.DEFAULT_POOLSIZE))
+                    .setDefault(String.valueOf(ReconstructionOptions.DEFAULT_POOLSIZE))
                     .setRequired(false);
             poolSize.setHelp("The size of the thread-pool processing service and node reports.");
 
             FlaggedOption maxNodes = new FlaggedOption(ARG_MAX_NODES)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('n')
-                    .setDefault(String.valueOf(ReconstructionSetup.MAX_NODES))
+                    .setDefault(String.valueOf(ReconstructionOptions.MAX_NODES))
                     .setRequired(false);
             maxNodes.setHelp("The maximum number of reconstruction nodes to be used.");
 
             FlaggedOption maxThreads = new FlaggedOption(ARG_MAX_THREADS)
                     .setStringParser(JSAP.INTEGER_PARSER)
                     .setShortFlag('t')
-                    .setDefault(String.valueOf(ReconstructionSetup.MAX_THREADS))
+                    .setDefault(String.valueOf(ReconstructionOptions.MAX_THREADS))
                     .setRequired(false);
             maxThreads.setHelp("The maximum number of reconstruction threads to be used per node.");
 
@@ -464,12 +468,13 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),
                                               parser.parseDirectory("tmp"));
-            return new CloudOrchestrator(setup, paths);
+            ReconstructionOptions options = new ReconstructionOptions();
+            return new CloudOrchestrator(setup, paths, options);
         }
     }
 }

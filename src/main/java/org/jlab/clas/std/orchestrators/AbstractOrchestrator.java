@@ -35,6 +35,7 @@ abstract class AbstractOrchestrator {
 
     final ReconstructionSetup setup;
     final ReconstructionPaths paths;
+    final ReconstructionOptions options;
     final ReconstructionStats stats;
 
     private final BlockingQueue<ReconstructionNode> freeNodes;
@@ -52,6 +53,19 @@ abstract class AbstractOrchestrator {
         final String localHost;
         final String frontEnd;
         final List<ServiceInfo> recChain;
+
+        ReconstructionSetup(List<ServiceInfo> recChain,
+                            String localhost,
+                            String frontEnd) {
+            this.localHost = ReconstructionConfigParser.hostAddress(localhost);
+            this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
+            this.recChain = recChain;
+        }
+    }
+
+
+    static class ReconstructionOptions {
+
         final boolean useFrontEnd;
         final boolean stageFiles;
         final int poolSize;
@@ -62,29 +76,27 @@ abstract class AbstractOrchestrator {
         static final int MAX_NODES = 512;
         static final int MAX_THREADS = 64;
 
-        // CHECKSTYLE.OFF: ParameterNumber
-        ReconstructionSetup(List<ServiceInfo> recChain,
-                            String localhost,
-                            String frontEnd,
-                            boolean useFrontEnd,
-                            boolean stageFiles,
-                            int poolSize,
-                            int maxNodes,
-                            int maxThreads) {
-            this.localHost = ReconstructionConfigParser.hostAddress(localhost);
-            this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
-            this.recChain = recChain;
+        /**
+         * Default options.
+         */
+        ReconstructionOptions() {
+            this(true, true, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
+        }
+
+        /**
+        /**
+         * CloudOrchestrator options.
+         */
+        ReconstructionOptions(boolean useFrontEnd,
+                              boolean stageFiles,
+                              int poolSize,
+                              int maxNodes,
+                              int maxThreads) {
             this.useFrontEnd = useFrontEnd;
             this.stageFiles = stageFiles;
             this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
-        }
-        // CHECKSTYLE.ON: ParameterNumber
-
-        ReconstructionSetup(String frontEnd, List<ServiceInfo> recChain) {
-            this(recChain, "localhost", frontEnd, true, true,
-                 DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
         }
     }
 
@@ -192,13 +204,16 @@ abstract class AbstractOrchestrator {
     }
 
 
-    AbstractOrchestrator(ReconstructionSetup setup, ReconstructionPaths paths) {
+    AbstractOrchestrator(ReconstructionSetup setup,
+                         ReconstructionPaths paths,
+                         ReconstructionOptions options) {
         try {
-            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, setup.poolSize);
+            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, options.poolSize);
             orchestrator.setReconstructionChain(setup.recChain);
 
             this.setup = setup;
             this.paths = paths;
+            this.options = options;
 
             this.freeNodes = new LinkedBlockingQueue<>();
             this.nodesExecutor = Executors.newCachedThreadPool();
@@ -305,7 +320,7 @@ abstract class AbstractOrchestrator {
             subscribe(node);
 
             Logging.info("Configuring services on %s...", node.dpe.name);
-            if (setup.stageFiles) {
+            if (options.stageFiles) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
             // TODO send proper configuration data
@@ -355,7 +370,7 @@ abstract class AbstractOrchestrator {
 
 
     private void checkFiles() {
-        if (setup.stageFiles) {
+        if (options.stageFiles) {
             Logging.info("Monitoring files on input directory...");
             new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
         } else {
@@ -390,8 +405,8 @@ abstract class AbstractOrchestrator {
 
 
     private void processAllFiles() throws InterruptedException {
-        if (setup.maxNodes < ReconstructionSetup.MAX_NODES) {
-            while (freeNodes.size() < setup.maxNodes) {
+        if (options.maxNodes < ReconstructionOptions.MAX_NODES) {
+            while (freeNodes.size() < options.maxNodes) {
                 orchestrator.sleep(100);
             }
         }
@@ -428,7 +443,7 @@ abstract class AbstractOrchestrator {
 
 
     void openFiles(ReconstructionNode node, ReconstructionFile recFile) {
-        if (setup.stageFiles) {
+        if (options.stageFiles) {
             node.setFiles(recFile.inputName);
         } else {
             node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
@@ -443,7 +458,7 @@ abstract class AbstractOrchestrator {
         node.setFileCounter(fileCounter, totalFiles);
 
         List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
-        int threads = node.dpe.cores <= setup.maxThreads ? node.dpe.cores : setup.maxThreads;
+        int threads = node.dpe.cores <= options.maxThreads ? node.dpe.cores : options.maxThreads;
         node.sendEventsToDpe(node.dpe.name, recChain, threads);
     }
 
@@ -462,7 +477,7 @@ abstract class AbstractOrchestrator {
         try {
             String currentFile = node.currentInputFileName;
             node.closeFiles();
-            if (setup.stageFiles) {
+            if (options.stageFiles) {
                 node.saveOutputFile();
                 Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
             }
