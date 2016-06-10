@@ -55,6 +55,11 @@ abstract class AbstractOrchestrator {
         final List<ServiceInfo> recChain;
 
         ReconstructionSetup(List<ServiceInfo> recChain,
+                            String localhost) {
+            this(recChain, localhost, localhost);
+        }
+
+        ReconstructionSetup(List<ServiceInfo> recChain,
                             String localhost,
                             String frontEnd) {
             this.localHost = ReconstructionConfigParser.hostAddress(localhost);
