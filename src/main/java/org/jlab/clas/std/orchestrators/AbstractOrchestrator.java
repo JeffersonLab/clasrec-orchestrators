@@ -283,7 +283,6 @@ abstract class AbstractOrchestrator {
      */
     void executeSetup(ReconstructionNode node) {
         nodesExecutor.execute(() -> setupNode(node));
-        stats.add(node);
     }
 
 
@@ -310,6 +309,7 @@ abstract class AbstractOrchestrator {
             Logging.info("All services configured on " + node.dpe.name);
 
             freeNodes.add(node);
+            stats.add(node);
         } catch (OrchestratorError e) {
             Logging.error("Could not use %s for reconstruction%n%s",
                           node.dpe.name, e.getMessage());
