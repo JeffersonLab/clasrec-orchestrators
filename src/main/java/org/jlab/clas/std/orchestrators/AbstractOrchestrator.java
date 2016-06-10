@@ -18,6 +18,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
@@ -39,7 +40,7 @@ abstract class AbstractOrchestrator {
     private final BlockingQueue<ReconstructionNode> freeNodes;
     private final ExecutorService nodesExecutor;
 
-    private final BlockingQueue<String> processingQueue = new LinkedBlockingQueue<String>();
+    private final BlockingQueue<ReconstructionFile> processingQueue = new LinkedBlockingQueue<>();
     private final AtomicInteger processedFilesCounter = new AtomicInteger();
 
     private final Semaphore recSem;
@@ -88,6 +89,17 @@ abstract class AbstractOrchestrator {
     }
 
 
+    static class ReconstructionFile {
+
+        final String inputName;
+        final String outputName;
+
+        ReconstructionFile(String inFile, String outFile) {
+            inputName = inFile;
+            outputName = outFile;
+        }
+    }
+
 
     static class ReconstructionPaths {
 
@@ -101,7 +113,7 @@ abstract class AbstractOrchestrator {
         final String outputDir;
         final String stageDir;
 
-        private final List<String> allFiles;
+        private final List<ReconstructionFile> allFiles;
 
         ReconstructionPaths(List<String> inputFiles,
                             String inputDir,
@@ -110,15 +122,17 @@ abstract class AbstractOrchestrator {
             this.inputDir = inputDir;
             this.outputDir = outputDir;
             this.stageDir = stageDir;
-            this.allFiles = inputFiles;
+            this.allFiles = inputFiles.stream()
+                                      .map(f -> new ReconstructionFile(f, "out_" + f))
+                                      .collect(Collectors.toList());
         }
 
-        String inputFilePath(String inputFileName) {
-            return inputDir + File.separator + inputFileName;
+        String inputFilePath(ReconstructionFile recFile) {
+            return inputDir + File.separator + recFile.inputName;
         }
 
-        String outputFilePath(String inputFileName) {
-            return outputDir + File.separator + "out_" + inputFileName;
+        String outputFilePath(ReconstructionFile recFile) {
+            return outputDir + File.separator + recFile.outputName;
         }
 
         int numFiles() {
@@ -313,8 +327,8 @@ abstract class AbstractOrchestrator {
             Logging.info("Monitoring files on input directory...");
             new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
         } else {
-            for (String fileName : paths.allFiles) {
-                processingQueue.add(fileName);
+            for (ReconstructionFile file : paths.allFiles) {
+                processingQueue.add(file);
             }
         }
     }
@@ -324,15 +338,15 @@ abstract class AbstractOrchestrator {
 
         @Override
         public void run() {
-            BlockingQueue<String> requestedFiles = new LinkedBlockingDeque<>();
-            for (String fileName : paths.allFiles) {
-                requestedFiles.add(fileName);
+            BlockingQueue<ReconstructionFile> requestedFiles = new LinkedBlockingDeque<>();
+            for (ReconstructionFile file : paths.allFiles) {
+                requestedFiles.add(file);
             }
             while (!requestedFiles.isEmpty()) {
-                String fileName = requestedFiles.element();
-                Path filePath = Paths.get(paths.inputFilePath(fileName));
+                ReconstructionFile recFile = requestedFiles.element();
+                Path filePath = Paths.get(paths.inputFilePath(recFile));
                 if (filePath.toFile().exists()) {
-                    processingQueue.add(fileName);
+                    processingQueue.add(recFile);
                     requestedFiles.remove();
                     Logging.info("File %s is cached", filePath);
                 } else {
@@ -350,8 +364,8 @@ abstract class AbstractOrchestrator {
             }
         }
         while (processedFilesCounter.get() < paths.numFiles()) {
-            String fileName = processingQueue.peek();
-            if (fileName == null) {
+            ReconstructionFile recFile = processingQueue.peek();
+            if (recFile == null) {
                 orchestrator.sleep(100);
                 continue;
             }
@@ -359,7 +373,7 @@ abstract class AbstractOrchestrator {
             final ReconstructionNode node = freeNodes.poll(60, TimeUnit.SECONDS);
             if (node != null) {
                 try {
-                    nodesExecutor.execute(() -> processFile(node, fileName));
+                    nodesExecutor.execute(() -> processFile(node, recFile));
                     processingQueue.remove();
                 } catch (RejectedExecutionException e) {
                     freeNodes.add(node);
@@ -369,16 +383,16 @@ abstract class AbstractOrchestrator {
     }
 
 
-    void processFile(ReconstructionNode node, String inputFile) {
+    void processFile(ReconstructionNode node, ReconstructionFile recFile) {
         try {
             stats.startClock();
             DpeInfo dpe = node.dpe;
 
             // TODO check DPE is alive
             if (setup.stageFiles) {
-                node.setFiles(inputFile);
+                node.setFiles(recFile.inputName);
             } else {
-                node.setFiles(paths.inputFilePath(inputFile), paths.outputFilePath(inputFile));
+                node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
             }
             node.openFiles();
 
