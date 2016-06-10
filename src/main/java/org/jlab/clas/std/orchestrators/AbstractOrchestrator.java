@@ -299,11 +299,9 @@ abstract class AbstractOrchestrator {
     void setupNode(ReconstructionNode node) {
         try {
             Logging.info("Start processing on %s...", node.dpe.name);
-            orchestrator.deployInputOutputServices(node.dpe, 1);
-            orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
-            orchestrator.checkInputOutputServices(node.dpe);
-            orchestrator.checkReconstructionServices(node.dpe);
-            Logging.info("All services deployed on " + node.dpe.name);
+            if (!checkChain(node)) {
+                deploy(node);
+            }
             subscribe(node);
 
             Logging.info("Configuring services on %s...", node.dpe.name);
@@ -325,6 +323,29 @@ abstract class AbstractOrchestrator {
             // TODO cleanup
             throw e;
         }
+    }
+
+
+    boolean checkChain(ReconstructionNode node) {
+        Logging.info("Searching services in %s...", node.dpe.name);
+        if (!orchestrator.findInputOutputService(node.dpe)) {
+            return false;
+        }
+        if (!orchestrator.findReconstructionServices(node.dpe)) {
+            return false;
+        }
+        Logging.info("All services already deployed on %s", node.dpe.name);
+        return true;
+    }
+
+
+    void deploy(ReconstructionNode node) {
+        Logging.info("Deploying services in %s...", node.dpe.name);
+        orchestrator.deployInputOutputServices(node.dpe, 1);
+        orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
+        orchestrator.checkInputOutputServices(node.dpe);
+        orchestrator.checkReconstructionServices(node.dpe);
+        Logging.info("All services deployed on %s", node.dpe.name);
     }
 
 
