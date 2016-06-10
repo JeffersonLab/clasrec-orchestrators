@@ -9,6 +9,7 @@ import java.util.Objects;
 import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
+import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
@@ -29,6 +30,7 @@ import com.martiansoftware.jsap.UnflaggedOption;
 public final class LocalOrchestrator extends AbstractOrchestrator {
 
     private final ReconstructionNode ioNode;
+    private final Benchmark benchmark;
 
     private long orchTimeStart;
     private long orchTimeEnd;
@@ -165,6 +167,12 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         int cores = Runtime.getRuntime().availableProcessors();
         DpeInfo dpe = new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME);
         ioNode = new ReconstructionNode(orchestrator, dpe);
+
+        List<ServiceName> benchmarkServices = new ArrayList<>();
+        benchmarkServices.add(orchestrator.getReaderServiceName(dpe));
+        benchmarkServices.addAll(orchestrator.generateReconstructionChain(dpe));
+        benchmarkServices.add(orchestrator.getWriterServiceName(dpe));
+        benchmark = new Benchmark(benchmarkServices);
     }
 
 
@@ -172,6 +180,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
     void start() {
         orchTimeStart = System.currentTimeMillis();
         setupNode(ioNode);
+        benchmark.initialize(orchestrator.getReport(ioNode.dpe));
     }
 
 
@@ -184,6 +193,13 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
 
     @Override
     void end() {
+        try {
+            benchmark.update(orchestrator.getReport(ioNode.dpe));
+            printBenchmark();
+        } catch (OrchestratorError e) {
+            Logging.error("Could not generate benchmark: %s", e.getMessage());
+        }
+
         orchTimeEnd = System.currentTimeMillis();
         float recTimeMs = stats.totalTime() / 1000.0f;
         float totalTimeMs = (orchTimeEnd - orchTimeStart) / 1000.0f;
@@ -191,6 +207,54 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         Logging.info("Average processing time  = %7.2f ms", stats.localAverage());
         Logging.info("Total processing time    = %7.2f s", recTimeMs);
         Logging.info("Total orchestrator time  = %7.2f s", totalTimeMs);
+    }
+
+
+    private void printBenchmark() {
+        BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
+        System.out.println();
+        System.out.println("Benchmark results:");
+        ServiceName reader = orchestrator.getReaderServiceName(ioNode.dpe);
+        ServiceName writer = orchestrator.getWriterServiceName(ioNode.dpe);
+        printer.printService(reader, "READER");
+        for (ServiceName service : orchestrator.generateReconstructionChain(ioNode.dpe)) {
+            printer.printService(service, service.name());
+        }
+        printer.printService(writer, "WRITER");
+        printer.printTotal();
+    }
+
+
+    private static class BenchmarkPrinter {
+
+        private final Benchmark benchmark;
+
+        private long totalTime = 0;
+        private long totalRequests = 0;
+
+        BenchmarkPrinter(Benchmark benchmark, long totalRequests) {
+            this.benchmark = benchmark;
+            this.totalRequests = totalRequests;
+        }
+
+        void printService(ServiceName service, String label) {
+            long time = benchmark.time(service.canonicalName());
+            totalTime += time;
+            print(label, time, totalRequests);
+        }
+
+        void printTotal() {
+            print("TOTAL", totalTime, totalRequests);
+        }
+
+        private void print(String name, long time, long requests) {
+            double timePerEvent = (time / requests) / 1e3;
+            Logging.info("  %-9s  %5d events  " +
+                         "  total time = %7.2f s  " +
+                         "  average event time = %6.2f ms",
+                         name, requests, time / 1e6, timePerEvent);
+
+        }
     }
 
 
