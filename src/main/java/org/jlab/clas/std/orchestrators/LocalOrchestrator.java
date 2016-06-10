@@ -1,21 +1,15 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
 
-import org.jlab.clara.base.error.ClaraException;
+import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
-import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
-import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
@@ -32,17 +26,12 @@ import com.martiansoftware.jsap.UnflaggedOption;
  * <p>
  * This orchestrator is called by the {@code local-orchestrator} script.
  */
-public final class LocalOrchestrator {
+public final class LocalOrchestrator extends AbstractOrchestrator {
 
-    private final ReconstructionOrchestrator orchestrator;
     private final ReconstructionNode ioNode;
-    private final Map<DpeName, List<ServiceName>> reconstructionChains = new HashMap<>();
 
-    private final ReconstructionSetup setup;
-    private final ReconstructionPaths paths;
-    private final ReconstructionOptions options;
-    private final ReconstructionStats stats;
-
+    private long orchTimeStart;
+    private long orchTimeEnd;
 
     public static void main(String[] args) {
         try {
@@ -84,8 +73,7 @@ public final class LocalOrchestrator {
     public static final class Builder {
 
         private final List<ServiceInfo> recChain;
-        private final List<DpeInfo> ioNodes;
-        private final List<DpeInfo> recNodes;
+        private final String localhost;
 
         private String inputFile;
         private String outputFile;
@@ -108,14 +96,9 @@ public final class LocalOrchestrator {
             }
 
             ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+
             this.recChain = parser.parseReconstructionChain();
-
-            this.ioNodes = new ArrayList<DpeInfo>();
-            this.ioNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
-
-            this.recNodes = new ArrayList<DpeInfo>();
-            this.recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
-
+            this.localhost = ReconstructionConfigParser.hostAddress("localhost");
             this.inputFile = inputFile;
 
             Path inputFilePath = Paths.get(inputFile);
@@ -166,288 +149,61 @@ public final class LocalOrchestrator {
          * Creates the orchestrator.
          */
         public LocalOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, ioNodes, recNodes);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, localhost);
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
-            ReconstructionOptions opts = new ReconstructionOptions(threads, reportFreq);
+            ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
         }
-    }
-
-
-    private static class ReconstructionSetup {
-
-        final List<DpeInfo> ioNodes;
-        final List<DpeInfo> recNodes;
-        final List<ServiceInfo> recChain;
-
-        ReconstructionSetup(List<ServiceInfo> recChain,
-                            List<DpeInfo> ioNodes,
-                            List<DpeInfo> recNodes) {
-            this.recChain = recChain;
-            this.ioNodes = ioNodes;
-            this.recNodes = recNodes;
-        }
-    }
-
-
-    private static class ReconstructionPaths {
-
-        final String inputFile;
-        final String outputFile;
-
-        ReconstructionPaths(String inFile, String outFile) {
-            inputFile = inFile;
-            outputFile = outFile;
-        }
-    }
-
-
-    private static class ReconstructionOptions {
-
-        final int threads;
-        final int reportFreq;
-
-        ReconstructionOptions(int numThreads, int reportFreq) {
-            this.threads = numThreads;
-            this.reportFreq = reportFreq;
-        }
-    }
-
-
-    private static class ReconstructionStats {
-        private final Semaphore recSem = new Semaphore(1);
-        private volatile boolean recStat;
-        private volatile String recMsg = "Could not run reconstruction!";
-
-        private long totalTimeStart;
-        private long totalTimeEnd;
-        private long recTimeStart;
-        private long recTimeEnd;
     }
 
 
     private LocalOrchestrator(ReconstructionSetup setup,
                               ReconstructionPaths paths,
                               ReconstructionOptions opts) {
-        try {
-            this.orchestrator = new ReconstructionOrchestrator();
-            orchestrator.setReconstructionChain(setup.recChain);
-            for (DpeInfo dpe : setup.recNodes) {
-                List<ServiceName> chain = orchestrator.generateReconstructionChain(dpe);
-                reconstructionChains.put(dpe.name, chain);
-            }
-            this.ioNode = new ReconstructionNode(orchestrator, setup.ioNodes.get(0));
-            this.setup = setup;
-            this.paths = paths;
-            this.options = opts;
-            this.stats = new ReconstructionStats();
-        } catch (IOException | ClaraException e) {
-            throw new OrchestratorError("Could not connect to Clara", e);
-        }
+        super(setup, paths, opts);
+        DpeName name = new DpeName(setup.localHost, ClaraLang.JAVA);
+        int cores = Runtime.getRuntime().availableProcessors();
+        DpeInfo dpe = new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME);
+        ioNode = new ReconstructionNode(orchestrator, dpe);
     }
 
 
-    /**
-     * Runs the reconstruction.
-     *
-     * @return status of the reconstruction.
-     * @throws OrchestratorError in case of any error that aborted the reconstruction
-     */
-    public boolean run() {
-        try {
-            stats.totalTimeStart = System.currentTimeMillis();
-            check();
-            start();
-            stats.recTimeStart = System.currentTimeMillis();
-            processFile();
-            waitRec();
-            stats.recTimeEnd = System.currentTimeMillis();
-            stop();
-            stats.totalTimeEnd = System.currentTimeMillis();
-            end();
-            return stats.recStat;
-        } catch (OrchestratorError e) {
-            end();
-            throw e;
-        }
+    @Override
+    void start() {
+        orchTimeStart = System.currentTimeMillis();
+        setupNode(ioNode);
     }
 
 
-    private void check() {
-        if (!checkChain()) {
-            try {
-                deployChain();
-            } catch (OrchestratorError e) {
-                Logging.info("Cleaning...");
-                orchestrator.removeUserContainers();
-                throw e;
-            }
-        }
+    @Override
+    void subscribe(ReconstructionNode node) {
+        super.subscribe(node);
+        orchestrator.subscribeDone(node.writerName, new DataHandlerCB());
     }
 
 
-    private boolean checkChain() {
-        for (DpeInfo dpe : setup.ioNodes) {
-            Logging.info("Searching I/O services in " + dpe.name);
-            if (!orchestrator.findInputOutputService(dpe)) {
-                return false;
-            }
-        }
-        for (DpeInfo dpe : setup.recNodes) {
-            Logging.info("Deploying reconstruction chain in " + dpe.name);
-            if (!orchestrator.findReconstructionServices(dpe)) {
-                return false;
-            }
-        }
-        return true;
+    @Override
+    void end() {
+        orchTimeEnd = System.currentTimeMillis();
+        float recTimeMs = stats.totalTime() / 1000.0f;
+        float totalTimeMs = (orchTimeEnd - orchTimeStart) / 1000.0f;
+        System.out.println();
+        Logging.info("Average processing time  = %7.2f ms", stats.localAverage());
+        Logging.info("Total processing time    = %7.2f s", recTimeMs);
+        Logging.info("Total orchestrator time  = %7.2f s", totalTimeMs);
     }
-
-
-    private void deployChain() {
-        for (DpeInfo dpe : setup.ioNodes) {
-            Logging.info("Deploying I/O services in " + dpe.name);
-            orchestrator.deployInputOutputServices(dpe, 1);
-        }
-        int availableProcessors = Runtime.getRuntime().availableProcessors();
-        for (DpeInfo dpe : setup.recNodes) {
-            Logging.info("Deploying reconstruction chain in " + dpe.name);
-            orchestrator.deployReconstructionChain(dpe, availableProcessors);
-        }
-
-        Logging.info("Checking services...");
-        for (DpeInfo dpe : setup.ioNodes) {
-            orchestrator.checkInputOutputServices(dpe);
-        }
-        for (DpeInfo dpe : setup.recNodes) {
-            orchestrator.checkReconstructionServices(dpe);
-        }
-    }
-
-
-    private void start() {
-        ioNode.setFiles(paths.inputFile, paths.outputFile);
-        ioNode.openFiles();
-        ioNode.setReportFrequency(options.reportFreq);
-        ioNode.setFileCounter(1, 1);
-
-        ErrorHandlerCB errorHandler = new ErrorHandlerCB();
-        orchestrator.subscribeErrors(ioNode.containerName, errorHandler);
-        orchestrator.subscribeDone(ioNode.writerName, new DataHandlerCB());
-
-        // TODO send proper configuration data
-        EngineData configData = new EngineData();
-        configData.setData(EngineDataType.STRING.mimeType(), ioNode.currentInputFile);
-        for (DpeInfo dpe : setup.recNodes) {
-            for (ServiceName recService : reconstructionChains.get(dpe.name)) {
-                ioNode.configureService(recService, configData);
-            }
-        }
-    }
-
-
-    private void processFile() {
-        Logging.info("Start processing...");
-        try {
-            stats.recSem.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Could not block processing.");
-        }
-
-        for (DpeInfo dpe : setup.recNodes) {
-            ioNode.sendEventsToDpe(dpe.name, reconstructionChains.get(dpe.name), options.threads);
-        }
-    }
-
-
-    private void waitRec() {
-        try {
-            stats.recSem.acquire();
-        } catch (InterruptedException e) {
-            stats.recMsg = "Processing interrupted...";
-        }
-    }
-
-
-    private void exitRec(boolean status, String msg) {
-        stats.recStat = status;
-        stats.recMsg = msg;
-        stats.recSem.release();
-    }
-
-
-    private void stop() {
-        orchestrator.sleep(100);
-        ioNode.closeFiles();
-    }
-
-
-    private void end() {
-        if (stats.recStat) {
-            float recTimeMs = (stats.recTimeEnd - stats.recTimeStart) / 1000.0f;
-            float totalTimeMs = (stats.totalTimeEnd - stats.totalTimeStart) / 1000.0f;
-            Logging.info("Total processing time   = %.2f s", recTimeMs);
-            Logging.info("Total orchestrator time = %.2f s", totalTimeMs);
-            Logging.info(stats.recMsg);
-        } else {
-            Logging.error(stats.recMsg);
-        }
-    }
-
 
 
     private class DataHandlerCB implements EngineCallback {
 
         @Override
         public void callback(EngineData data) {
-            reportAverage();
-        }
-
-        public void reportAverage() {
             long endTime = System.currentTimeMillis();
             ioNode.eventNumber += options.reportFreq;
             double timePerEvent = (endTime - ioNode.startTime) /  (double) ioNode.eventNumber;
             Logging.info("Average event processing time = %.2f ms", timePerEvent);
         }
     }
-
-
-
-    private class ErrorHandlerCB implements EngineCallback {
-
-        private boolean stopped = false;
-
-        @Override
-        public void callback(EngineData data) {
-            handleError(data);
-        }
-
-        private synchronized void handleError(EngineData data) {
-            if (stopped) {
-                return;
-            }
-
-            ServiceName source = new ServiceName(data.getEngineName());
-            DpeName host = source.dpe();
-            int requestId = data.getCommunicationId();
-            String description = data.getDescription();
-
-            if (description.equalsIgnoreCase("End of file")) {
-                stop(true, "Processing is complete.");
-            } else if (description.startsWith("Error opening the file")) {
-                Logging.error(description);
-                stop(false, "Could not start reconstruction.");
-            } else {
-                Logging.error("Error in %s (ID: %d):%n%s", source, requestId, description);
-                ioNode.requestEvent(host, reconstructionChains.get(host), requestId, "next-rec");
-            }
-        }
-
-        private void stop(boolean status, String msg) {
-            stopped = true;
-            exitRec(status, msg);
-        }
-    }
-
 
 
     private static class CommandLineBuilder {
@@ -546,17 +302,11 @@ public final class LocalOrchestrator {
             String outFile = parser.parseOutputFile();
             int nc = parser.parseNumberOfThreads();
 
-            List<DpeInfo> ioNodes = parser.parseInputOutputNodes();
-            List<DpeInfo> recNodes = parser.parseReconstructionNodes();
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
 
-            if (ioNodes.size() > 1) {
-                throw new OrchestratorConfigError("only one IO node is supported");
-            }
-
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, ioNodes, recNodes);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost");
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
-            ReconstructionOptions opts = new ReconstructionOptions(nc, 1000);
+            ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);
         }
     }
