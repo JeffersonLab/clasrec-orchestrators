@@ -469,6 +469,8 @@ abstract class AbstractOrchestrator {
 
 
     void startFile(ReconstructionNode node) {
+        node.setReportFrequency(options.reportFreq);
+
         int fileCounter = processedFilesCounter.get() + 1;
         int totalFiles = paths.numFiles();
         node.setFileCounter(fileCounter, totalFiles);
