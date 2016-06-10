@@ -79,7 +79,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         private String outputFile;
 
         private int threads = 1;
-        private int reportFreq = 1000;
+        private int reportFreq = 500;
 
         /**
          * Sets the required arguments to start a reconstruction.
