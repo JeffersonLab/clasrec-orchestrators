@@ -282,10 +282,20 @@ abstract class AbstractOrchestrator {
      * @throws RejectedExecutionException
      */
     void executeSetup(ReconstructionNode node) {
-        nodesExecutor.execute(() -> setupNode(node));
+        nodesExecutor.execute(() -> {
+            try {
+                setupNode(node);
+            } catch (OrchestratorError e) {
+                Logging.error("Could not use %s for reconstruction%n%s",
+                              node.dpe.name, e.getMessage());
+            }
+        });
     }
 
 
+    /**
+     * @throw OrchestratorError
+     */
     void setupNode(ReconstructionNode node) {
         try {
             Logging.info("Start processing on " + node.dpe.name + "...");
@@ -311,8 +321,8 @@ abstract class AbstractOrchestrator {
             freeNodes.add(node);
             stats.add(node);
         } catch (OrchestratorError e) {
-            Logging.error("Could not use %s for reconstruction%n%s",
-                          node.dpe.name, e.getMessage());
+            // TODO cleanup
+            throw e;
         }
     }
 
