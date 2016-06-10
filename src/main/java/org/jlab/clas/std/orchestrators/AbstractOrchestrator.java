@@ -282,8 +282,6 @@ abstract class AbstractOrchestrator {
 
             this.recSem = new Semaphore(1);
             this.stats = new ReconstructionStats();
-
-            Logging.verbose(true);
         } catch (ClaraException | IOException e) {
             throw new OrchestratorError("Could not connect to Clara", e);
         }
