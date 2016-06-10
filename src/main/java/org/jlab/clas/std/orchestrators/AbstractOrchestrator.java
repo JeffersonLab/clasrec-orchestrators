@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -147,6 +148,20 @@ abstract class AbstractOrchestrator {
         final String stageDir;
 
         private final List<ReconstructionFile> allFiles;
+
+        ReconstructionPaths(String inputFile, String outputFile) {
+            Path inputPath = Paths.get(inputFile);
+            Path outputPath = Paths.get(outputFile);
+
+            String inputName = inputPath.getFileName().toString();
+            String outputName = outputPath.getFileName().toString();
+
+            this.inputDir = inputPath.getParent().toString();
+            this.outputDir = outputPath.getParent().toString();
+            this.stageDir = STAGE_DIR;
+
+            this.allFiles = Arrays.asList(new ReconstructionFile(inputName, outputName));
+        }
 
         ReconstructionPaths(List<String> inputFiles,
                             String inputDir,
