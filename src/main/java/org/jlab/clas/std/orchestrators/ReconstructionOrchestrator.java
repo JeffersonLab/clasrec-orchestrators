@@ -50,8 +50,8 @@ class ReconstructionOrchestrator {
     private ServiceInfo writer;
 
     private List<ServiceInfo> reconstructionChain;
-    private Set<ContainerName> userContainers;
-    private Map<ServiceName, DeployedService> userServices;
+    private final Set<ContainerName> userContainers;
+    private final Map<ServiceName, DeployedService> userServices;
 
     private final ZContext context = new ZContext();
 

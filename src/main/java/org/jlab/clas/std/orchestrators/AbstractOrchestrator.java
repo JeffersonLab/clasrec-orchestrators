@@ -202,8 +202,8 @@ abstract class AbstractOrchestrator {
     static class ReconstructionStats {
 
         private final Map<ReconstructionNode, NodeStats> recStats = new ConcurrentHashMap<>();
-        private AtomicLong startTime = new AtomicLong();
-        private AtomicLong endTime = new AtomicLong();
+        private final AtomicLong startTime = new AtomicLong();
+        private final AtomicLong endTime = new AtomicLong();
 
         private static class NodeStats {
             private int events = 0;

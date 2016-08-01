@@ -12,7 +12,7 @@ import java.util.Map;
 
 class Benchmark {
 
-    Map<String, Runtime> runtimeStats = new HashMap<>();
+    final Map<String, Runtime> runtimeStats = new HashMap<>();
 
     Benchmark(List<ServiceName> services) {
         services.forEach(s -> {
