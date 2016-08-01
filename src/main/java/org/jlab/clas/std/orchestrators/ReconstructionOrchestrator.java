@@ -45,9 +45,9 @@ class ReconstructionOrchestrator {
     final BaseOrchestrator base;
     final String feHost;
 
-    private ServiceInfo stage;
-    private ServiceInfo reader;
-    private ServiceInfo writer;
+    private final ServiceInfo stage;
+    private final ServiceInfo reader;
+    private final ServiceInfo writer;
 
     private final List<ServiceInfo> reconstructionChain;
     private final Set<ContainerName> userContainers;
@@ -65,9 +65,17 @@ class ReconstructionOrchestrator {
         base = new BaseOrchestrator(new DpeName(frontEnd, ClaraLang.JAVA), poolSize);
         feHost = frontEnd;
         reconstructionChain = setReconstructionChain(recChain);
+
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
-        setInputOutputServices();
+
+        stage = ioServiceFactory("org.jlab.clas.std.services.system.DataManager",
+                                 "DataManager");
+        reader = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioReader",
+                                  "EvioToEvioReader");
+        writer = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
+                                  "EvioToEvioWriter");
+
         registerDataTypes();
     }
 
@@ -88,22 +96,9 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void setInputOutputServices() {
-        String stageClass = "org.jlab.clas.std.services.system.DataManager";
-        String stageContainer = ReconstructionConfigParser.getDefaultContainer();
-        String stageName = "DataManager";
-
-        String readerClass = "org.jlab.clas.std.services.convertors.EvioToEvioReader";
-        String readerContainer = ReconstructionConfigParser.getDefaultContainer();
-        String readerName = "EvioToEvioReader";
-
-        String writerClass = "org.jlab.clas.std.services.convertors.EvioToEvioWriter";
-        String writerContainer = ReconstructionConfigParser.getDefaultContainer();
-        String writerName = "EvioToEvioWriter";
-
-        stage = new ServiceInfo(stageClass, stageContainer, stageName);
-        reader = new ServiceInfo(readerClass, readerContainer, readerName);
-        writer = new ServiceInfo(writerClass, writerContainer, writerName);
+    private static ServiceInfo ioServiceFactory(String className, String engineName) {
+        String containerName = ReconstructionConfigParser.getDefaultContainer();
+        return new ServiceInfo(className, containerName, engineName);
     }
 
 
