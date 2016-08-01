@@ -202,7 +202,6 @@ abstract class AbstractOrchestrator {
     static class ReconstructionStats {
 
         private final Map<ReconstructionNode, NodeStats> recStats = new ConcurrentHashMap<>();
-        private AtomicInteger events = new AtomicInteger();
         private AtomicLong startTime = new AtomicLong();
         private AtomicLong endTime = new AtomicLong();
 
@@ -227,7 +226,6 @@ abstract class AbstractOrchestrator {
             NodeStats nodeStats = recStats.get(node);
             nodeStats.events += recEvents;
             nodeStats.totalTime += recTime;
-            events.addAndGet(recEvents);
         }
 
         long totalEvents() {
@@ -270,8 +268,7 @@ abstract class AbstractOrchestrator {
         }
 
         double globalAverage() {
-            double recTime = endTime.get() - startTime.get();
-            return recTime / events.get();
+            return globalTime() / totalEvents();
         }
     }
 
