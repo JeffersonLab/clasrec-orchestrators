@@ -157,8 +157,8 @@ abstract class AbstractOrchestrator {
             String inputName = inputPath.getFileName().toString();
             String outputName = outputPath.getFileName().toString();
 
-            this.inputDir = inputPath.getParent().toString();
-            this.outputDir = outputPath.getParent().toString();
+            this.inputDir = getParent(inputPath);
+            this.outputDir = getParent(outputPath);
             this.stageDir = STAGE_DIR;
 
             this.allFiles = Arrays.asList(new ReconstructionFile(inputName, outputName));
@@ -174,6 +174,15 @@ abstract class AbstractOrchestrator {
             this.allFiles = inputFiles.stream()
                                       .map(f -> new ReconstructionFile(f, "out_" + f))
                                       .collect(Collectors.toList());
+        }
+
+        private String getParent(Path file) {
+            Path parent = file.getParent();
+            if (parent == null) {
+                return Paths.get("").toAbsolutePath().toString();
+            } else {
+                return parent.toString();
+            }
         }
 
         String inputFilePath(ReconstructionFile recFile) {
