@@ -224,16 +224,20 @@ abstract class AbstractOrchestrator {
 
         void update(ReconstructionNode node, int recEvents, long recTime) {
             NodeStats nodeStats = recStats.get(node);
-            nodeStats.events += recEvents;
-            nodeStats.totalTime += recTime;
+            synchronized (nodeStats) {
+                nodeStats.events += recEvents;
+                nodeStats.totalTime += recTime;
+            }
         }
 
         long totalEvents() {
             long sum = 0;
             for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
                 NodeStats stat = entry.getValue();
-                if (stat.events > 0) {
-                    sum += stat.events;
+                synchronized (stat) {
+                    if (stat.events > 0) {
+                        sum += stat.events;
+                    }
                 }
             }
             return sum;
@@ -243,8 +247,10 @@ abstract class AbstractOrchestrator {
             long sum = 0;
             for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
                 NodeStats stat = entry.getValue();
-                if (stat.events > 0) {
-                    sum += stat.totalTime;
+                synchronized (stat) {
+                    if (stat.events > 0) {
+                        sum += stat.totalTime;
+                    }
                 }
             }
             return sum;
@@ -259,9 +265,11 @@ abstract class AbstractOrchestrator {
             int avgCount = 0;
             for (Entry<ReconstructionNode, NodeStats> entry : recStats.entrySet()) {
                 NodeStats stat = entry.getValue();
-                if (stat.events > 0) {
-                    avgSum += stat.totalTime / (double) stat.events;
-                    avgCount++;
+                synchronized (stat) {
+                    if (stat.events > 0) {
+                        avgSum += stat.totalTime / (double) stat.events;
+                        avgCount++;
+                    }
                 }
             }
             return avgSum / avgCount;
