@@ -285,8 +285,8 @@ abstract class AbstractOrchestrator {
                          ReconstructionPaths paths,
                          ReconstructionOptions options) {
         try {
-            orchestrator = new ReconstructionOrchestrator(setup.frontEnd, options.poolSize);
-            orchestrator.setReconstructionChain(setup.recChain);
+            this.orchestrator = new ReconstructionOrchestrator(
+                    setup.frontEnd, options.poolSize, setup.recChain);
 
             this.setup = setup;
             this.paths = paths;

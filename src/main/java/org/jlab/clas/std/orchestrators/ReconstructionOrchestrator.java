@@ -49,19 +49,22 @@ class ReconstructionOrchestrator {
     private ServiceInfo reader;
     private ServiceInfo writer;
 
-    private List<ServiceInfo> reconstructionChain;
+    private final List<ServiceInfo> reconstructionChain;
     private final Set<ContainerName> userContainers;
     private final Map<ServiceName, DeployedService> userServices;
 
     private final ZContext context = new ZContext();
 
-    ReconstructionOrchestrator() throws ClaraException, IOException {
-        this(ReconstructionConfigParser.hostAddress("localhost"), 2);
+    ReconstructionOrchestrator(List<ServiceInfo> recChain)
+            throws ClaraException, IOException {
+        this(ReconstructionConfigParser.hostAddress("localhost"), 2, recChain);
     }
 
-    ReconstructionOrchestrator(String frontEnd, int poolSize) throws ClaraException, IOException {
+    ReconstructionOrchestrator(String frontEnd, int poolSize, List<ServiceInfo> recChain)
+            throws ClaraException, IOException {
         base = new BaseOrchestrator(new DpeName(frontEnd, ClaraLang.JAVA), poolSize);
         feHost = frontEnd;
+        reconstructionChain = setReconstructionChain(recChain);
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
         setInputOutputServices();
@@ -69,14 +72,14 @@ class ReconstructionOrchestrator {
     }
 
 
-    void setReconstructionChain(List<ServiceInfo> reconstructionChain) {
+    private static List<ServiceInfo> setReconstructionChain(List<ServiceInfo> reconstructionChain) {
         if (reconstructionChain == null) {
             throw new IllegalArgumentException("null reconstruction chain");
         }
         if (reconstructionChain.isEmpty()) {
             throw new IllegalArgumentException("empty reconstruction chain");
         }
-        this.reconstructionChain = reconstructionChain;
+        return new ArrayList<>(reconstructionChain);
     }
 
 
