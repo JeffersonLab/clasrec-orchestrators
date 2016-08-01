@@ -30,9 +30,9 @@ class ReconstructionNode {
     final ServiceName readerName;
     final ServiceName writerName;
 
-    String currentInputFileName;
-    String currentInputFile;
-    String currentOutputFile;
+    volatile String currentInputFileName;
+    volatile String currentInputFile;
+    volatile String currentOutputFile;
 
     AtomicInteger currentFileCounter = new AtomicInteger();
     AtomicInteger totalFilesCounter = new AtomicInteger();
