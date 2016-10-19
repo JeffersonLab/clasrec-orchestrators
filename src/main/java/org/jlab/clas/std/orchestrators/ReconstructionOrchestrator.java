@@ -454,7 +454,7 @@ class ReconstructionOrchestrator {
     // TODO: this should be provided by Clara
     private Set<xMsgRegistration> findSubscribers(String host, String topic)
             throws xMsgException {
-        xMsgRegAddress address = new xMsgRegAddress(host);
+        xMsgRegAddress address = new xMsgRegAddress(host, xMsgConstants.DEFAULT_PORT + 4);
         xMsgSocketFactory factory = new xMsgSocketFactory(context.getContext());
         xMsgRegDriver driver = new xMsgRegDriver(address, factory);
         driver.connect();
