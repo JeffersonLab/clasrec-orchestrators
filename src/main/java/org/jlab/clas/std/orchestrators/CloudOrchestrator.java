@@ -377,7 +377,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             useFrontEnd.setHelp("Use front-end for reconstruction.");
 
             Switch stageFiles = new Switch(ARG_STAGE_FILES)
-                    .setShortFlag('S');
+                    .setShortFlag('L');
             stageFiles.setHelp("Stage files to the local file-system before using them.");
 
             FlaggedOption tapeDir = new FlaggedOption(ARG_CACHE_DIR)
@@ -404,7 +404,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             FlaggedOption stageDir = new FlaggedOption(ARG_STAGE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
-                    .setShortFlag('s')
+                    .setShortFlag('l')
                     .setDefault(ReconstructionPaths.STAGE_DIR);
             stageDir.setHelp("The local stage directory where the temporary files will be stored.");
 
