@@ -62,6 +62,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         final List<String> inputFiles;
 
         private DpeName frontEnd = ReconstructionConfigParser.localDpeName();
+        private String session = "";
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
 
@@ -99,6 +100,17 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         public Builder withFrontEnd(DpeName frontEnd) {
             Objects.requireNonNull(frontEnd, "frontEnd parameter is null");
             this.frontEnd = frontEnd;
+            return this;
+        }
+
+        /**
+         * Sets the name of the front-end. Use this if the orchestrator is not
+         * running in the same node as the front-end, or if the orchestrator is
+         * not using the proper network interface or port for the front-end.
+         */
+        public Builder withSession(String session) {
+            Objects.requireNonNull(session, "session parameter is null");
+            this.session = session;
             return this;
         }
 
@@ -207,7 +219,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
                     inputDir, outputDir, stageDir);
             ReconstructionOptions options = new ReconstructionOptions(
@@ -230,7 +242,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
     void start() {
         printStartup();
         Logging.info("Waiting for reconstruction nodes...");
-        orchestrator.listenDpes(new DpeReportCB());
+        orchestrator.listenDpes(new DpeReportCB(), setup.session);
     }
 
 
@@ -293,6 +305,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
     public static class CommandLineBuilder {
 
         private static final String ARG_FRONTEND      = "frontEnd";
+        private static final String ARG_SESSION       = "session";
         private static final String ARG_USE_FRONTEND  = "useFrontEnd";
         private static final String ARG_STAGE_FILES   = "stageFiles";
         private static final String ARG_CACHE_DIR     = "cacheDir";
@@ -328,6 +341,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         public CloudOrchestrator build() {
             DpeName frontEnd = parseFrontEnd();
+            String session = parseSession();
             boolean useFrontEnd = config.getBoolean(ARG_USE_FRONTEND);
 
             int poolSize = config.getInt(ARG_POOL_SIZE);
@@ -346,7 +360,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles,
@@ -364,6 +378,14 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             }
         }
 
+        private String parseSession() {
+            String session = config.getString(ARG_SESSION);
+            if (session == null) {
+                return "";
+            }
+            return session;
+        }
+
         private void setArguments(JSAP jsap) {
             FlaggedOption frontEnd = new FlaggedOption(ARG_FRONTEND)
                     .setStringParser(JSAP.STRING_PARSER)
@@ -371,6 +393,12 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     .setShortFlag('f')
                     .setDefault(ReconstructionConfigParser.localDpeName().toString());
             frontEnd.setHelp("The name of the CLARA front-end DPE.");
+
+            FlaggedOption session = new FlaggedOption(ARG_SESSION)
+                    .setStringParser(JSAP.STRING_PARSER)
+                    .setShortFlag('s')
+                    .setRequired(false);
+            session.setHelp("The session of the CLARA DPEs to be used for reconstruction.");
 
             Switch useFrontEnd = new Switch(ARG_USE_FRONTEND)
                     .setShortFlag('F');
@@ -442,6 +470,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
             try {
                 jsap.registerParameter(frontEnd);
+                jsap.registerParameter(session);
                 jsap.registerParameter(useFrontEnd);
                 jsap.registerParameter(stageFiles);
                 jsap.registerParameter(inputDir);
@@ -474,7 +503,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, "");
             ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),

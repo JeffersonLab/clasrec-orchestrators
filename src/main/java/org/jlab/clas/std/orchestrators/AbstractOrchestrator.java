@@ -53,11 +53,14 @@ abstract class AbstractOrchestrator {
     static class ReconstructionSetup {
 
         final DpeName frontEnd;
+        final String session;
         final List<ServiceInfo> recChain;
 
         ReconstructionSetup(List<ServiceInfo> recChain,
-                            DpeName frontEnd) {
+                            DpeName frontEnd,
+                            String session) {
             this.frontEnd = frontEnd;
+            this.session = session;
             this.recChain = recChain;
         }
     }

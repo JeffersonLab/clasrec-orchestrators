@@ -368,10 +368,10 @@ class ReconstructionOrchestrator {
     }
 
 
-    void listenDpes(DpeCallBack callback) {
+    void listenDpes(DpeCallBack callback, String session) {
         try {
             DpeCallbackWrapper dpeCallback = new DpeCallbackWrapper(callback);
-            base.listen().aliveDpes().start(dpeCallback);
+            base.listen().aliveDpes(session).start(dpeCallback);
         } catch (ClaraException e) {
             throw new OrchestratorError("Could not subscribe to services", e);
         }
