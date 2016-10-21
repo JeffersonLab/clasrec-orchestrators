@@ -374,18 +374,18 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
             Switch useFrontEnd = new Switch(ARG_USE_FRONTEND)
                     .setShortFlag('F');
-            useFrontEnd.setHelp("Use front-end for reconstruction");
+            useFrontEnd.setHelp("Use front-end for reconstruction.");
 
             Switch stageFiles = new Switch(ARG_STAGE_FILES)
                     .setShortFlag('S');
-            stageFiles.setHelp("Stage files before using them");
+            stageFiles.setHelp("Stage files to the local file-system before using them.");
 
             FlaggedOption tapeDir = new FlaggedOption(ARG_CACHE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('c')
                     .setDefault(ReconstructionPaths.CACHE_DIR);
-            tapeDir.setHelp("The tape directory where from files are cached.");
+            tapeDir.setHelp("The tape directory where the files are cached.");
 
             FlaggedOption inputDir = new FlaggedOption(ARG_INPUT_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
@@ -406,7 +406,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     .setRequired(false)
                     .setShortFlag('s')
                     .setDefault(ReconstructionPaths.STAGE_DIR);
-            stageDir.setHelp("The stage directory where the local temporary files will be stored.");
+            stageDir.setHelp("The local stage directory where the temporary files will be stored.");
 
             FlaggedOption poolSize = new FlaggedOption(ARG_POOL_SIZE)
                     .setStringParser(JSAP.INTEGER_PARSER)
