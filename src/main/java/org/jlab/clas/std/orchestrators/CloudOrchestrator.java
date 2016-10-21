@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.jlab.clara.base.ClaraUtil;
+import org.jlab.clara.base.DpeName;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.ReconstructionOrchestrator.DpeCallBack;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
@@ -60,7 +61,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         final List<ServiceInfo> recChain;
         final List<String> inputFiles;
 
-        private String frontEnd = "localhost";
+        private DpeName frontEnd = ReconstructionConfigParser.localDpeName();
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
 
@@ -91,15 +92,12 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         }
 
         /**
-         * Sets the host of the front-end. Use this if the orchestrator is not
+         * Sets the name of the front-end. Use this if the orchestrator is not
          * running in the same node as the front-end, or if the orchestrator is
-         * not using the proper network interface for the front-end.
+         * not using the proper network interface or port for the front-end.
          */
-        public Builder withFrontEnd(String frontEnd) {
+        public Builder withFrontEnd(DpeName frontEnd) {
             Objects.requireNonNull(frontEnd, "frontEnd parameter is null");
-            if (frontEnd.isEmpty()) {
-                throw new IllegalArgumentException("frontEnd parameter is empty");
-            }
             this.frontEnd = frontEnd;
             return this;
         }
@@ -209,7 +207,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
                     inputDir, outputDir, stageDir);
             ReconstructionOptions options = new ReconstructionOptions(
@@ -247,7 +245,6 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         System.out.println("****************************************");
         System.out.println("*        CLAS Cloud Orchestrator       *");
         System.out.println("****************************************");
-        System.out.println("- Host         = " + setup.localHost);
         System.out.println("- Front-end    = " + setup.frontEnd);
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTime());
         System.out.println("- Pool size    = " + options.poolSize);
@@ -330,7 +327,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         }
 
         public CloudOrchestrator build() {
-            String frontEnd = config.getString(ARG_FRONTEND);
+            DpeName frontEnd = parseFrontEnd();
             boolean useFrontEnd = config.getBoolean(ARG_USE_FRONTEND);
 
             int poolSize = config.getInt(ARG_POOL_SIZE);
@@ -349,7 +346,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles,
@@ -358,13 +355,22 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             return new CloudOrchestrator(setup, paths, options);
         }
 
+        private DpeName parseFrontEnd() {
+            String frontEnd = config.getString(ARG_FRONTEND);
+            try {
+                return new DpeName(frontEnd);
+            } catch (IllegalArgumentException e) {
+                throw new OrchestratorConfigError("invalid front-end name: " + frontEnd);
+            }
+        }
+
         private void setArguments(JSAP jsap) {
             FlaggedOption frontEnd = new FlaggedOption(ARG_FRONTEND)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(false)
                     .setShortFlag('f')
-                    .setDefault("localhost");
-            frontEnd.setHelp("The address of the CLARA front-end.");
+                    .setDefault(ReconstructionConfigParser.localDpeName().toString());
+            frontEnd.setHelp("The name of the CLARA front-end DPE.");
 
             Switch useFrontEnd = new Switch(ARG_USE_FRONTEND)
                     .setShortFlag('F');
@@ -464,11 +470,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         public CloudOrchestrator build() {
             ReconstructionConfigParser parser = new ReconstructionConfigParser(configFile);
 
-            String frontEnd = "localhost";
+            DpeName frontEnd = ReconstructionConfigParser.localDpeName();
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost", frontEnd);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),

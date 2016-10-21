@@ -187,6 +187,11 @@ public class ReconstructionConfigParser {
     }
 
 
+    public static DpeName localDpeName() {
+        return new DpeName(hostAddress("localhost"), ClaraLang.JAVA);
+    }
+
+
     public static String hostAddress(String host) {
         try {
             return xMsgUtil.toHostAddress(host);

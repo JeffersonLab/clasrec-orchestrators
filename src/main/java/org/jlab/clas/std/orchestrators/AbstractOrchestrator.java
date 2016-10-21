@@ -52,20 +52,12 @@ abstract class AbstractOrchestrator {
 
     static class ReconstructionSetup {
 
-        final String localHost;
-        final String frontEnd;
+        final DpeName frontEnd;
         final List<ServiceInfo> recChain;
 
         ReconstructionSetup(List<ServiceInfo> recChain,
-                            String localhost) {
-            this(recChain, localhost, localhost);
-        }
-
-        ReconstructionSetup(List<ServiceInfo> recChain,
-                            String localhost,
-                            String frontEnd) {
-            this.localHost = ReconstructionConfigParser.hostAddress(localhost);
-            this.frontEnd = ReconstructionConfigParser.hostAddress(frontEnd);
+                            DpeName frontEnd) {
+            this.frontEnd = frontEnd;
             this.recChain = recChain;
         }
     }

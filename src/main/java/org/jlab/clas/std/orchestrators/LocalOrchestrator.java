@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
@@ -75,7 +74,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
     public static final class Builder {
 
         private final List<ServiceInfo> recChain;
-        private final String localhost;
+        private DpeName frontEnd;
 
         private String inputFile;
         private String outputFile;
@@ -100,7 +99,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
 
             this.recChain = parser.parseReconstructionChain();
-            this.localhost = ReconstructionConfigParser.hostAddress("localhost");
+            this.frontEnd = ReconstructionConfigParser.localDpeName();
             this.inputFile = inputFile;
 
             Path inputFilePath = Paths.get(inputFile);
@@ -148,10 +147,21 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         }
 
         /**
+         * Sets the name of the front-end DPE. Use this if the orchestrator is not
+         * running in the same node as the front-end, or if the orchestrator is
+         * not using the proper network interface or port for the DPE.
+         */
+        public Builder withFrontEnd(DpeName frontEnd) {
+            Objects.requireNonNull(frontEnd, "DPE parameter is null");
+            this.frontEnd = frontEnd;
+            return this;
+        }
+
+        /**
          * Creates the orchestrator.
          */
         public LocalOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, localhost);
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
@@ -163,9 +173,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                               ReconstructionPaths paths,
                               ReconstructionOptions opts) {
         super(setup, paths, opts);
-        DpeName name = new DpeName(setup.localHost, ClaraLang.JAVA);
         int cores = Runtime.getRuntime().availableProcessors();
-        DpeInfo dpe = new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME);
+        DpeInfo dpe = new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME);
         ioNode = new ReconstructionNode(orchestrator, dpe);
 
         List<ServiceName> benchmarkServices = new ArrayList<>();
@@ -276,6 +285,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
 
     private static class CommandLineBuilder {
 
+        private static final String ARG_FRONTEND = "frontEnd";
         private static final String ARG_THREADS = "nThreads";
         private static final String ARG_SERVICES_FILE = "servicesFile";
         private static final String ARG_INPUT_FILE = "inputFile";
@@ -307,6 +317,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             final String inFile = config.getString(ARG_INPUT_FILE);
             final String outFile = config.getString(ARG_OUTPUT_FILE);
             final int nc = config.getInt(ARG_THREADS);
+            final DpeName frontEnd = parseFrontEnd();
 
             List<DpeInfo> ioNodes = new ArrayList<DpeInfo>();
             ioNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
@@ -315,10 +326,29 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
 
             Builder builder = new Builder(servicesConfig, inFile);
-            return builder.withOutputFile(outFile).withThreads(nc).build();
+            return builder.withOutputFile(outFile)
+                          .withFrontEnd(frontEnd)
+                          .withThreads(nc)
+                          .build();
+        }
+
+        private DpeName parseFrontEnd() {
+            String frontEnd = config.getString(ARG_FRONTEND);
+            try {
+                return new DpeName(frontEnd);
+            } catch (IllegalArgumentException e) {
+                throw new OrchestratorConfigError("invalid DPE name: " + frontEnd);
+            }
         }
 
         private void setArguments(JSAP jsap) {
+
+            FlaggedOption frontEnd = new FlaggedOption(ARG_FRONTEND)
+                    .setStringParser(JSAP.STRING_PARSER)
+                    .setShortFlag('f')
+                    .setDefault(ReconstructionConfigParser.localDpeName().toString())
+                    .setRequired(false);
+            frontEnd.setHelp("The name of the CLARA front-end DPE.");
 
             FlaggedOption nThreads = new FlaggedOption(ARG_THREADS)
                     .setStringParser(JSAP.INTEGER_PARSER)
@@ -343,6 +373,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             outputFile.setHelp("The EVIO output file where reconstructed events will be saved.");
 
             try {
+                jsap.registerParameter(frontEnd);
                 jsap.registerParameter(nThreads);
                 jsap.registerParameter(servicesFile);
                 jsap.registerParameter(inputFile);
@@ -371,8 +402,9 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             int nc = parser.parseNumberOfThreads();
 
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
+            DpeName frontEnd = ReconstructionConfigParser.localDpeName();
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, "localhost");
+            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd);
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);

@@ -15,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 import org.jlab.clara.base.BaseOrchestrator;
-import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.ClaraName;
 import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.DpeName;
@@ -43,7 +42,7 @@ import org.zeromq.ZContext;
 class ReconstructionOrchestrator {
 
     final BaseOrchestrator base;
-    final String feHost;
+    final DpeName frontEnd;
 
     private final ServiceInfo stage;
     private final ServiceInfo reader;
@@ -55,15 +54,17 @@ class ReconstructionOrchestrator {
 
     private final ZContext context = new ZContext();
 
+
     ReconstructionOrchestrator(List<ServiceInfo> recChain)
             throws ClaraException, IOException {
-        this(ReconstructionConfigParser.hostAddress("localhost"), 2, recChain);
+        this(ReconstructionConfigParser.localDpeName(), 2, recChain);
     }
 
-    ReconstructionOrchestrator(String frontEnd, int poolSize, List<ServiceInfo> recChain)
+
+    ReconstructionOrchestrator(DpeName fe, int poolSize, List<ServiceInfo> recChain)
             throws ClaraException, IOException {
-        base = new BaseOrchestrator(new DpeName(frontEnd, ClaraLang.JAVA), poolSize);
-        feHost = frontEnd;
+        base = new BaseOrchestrator(fe, poolSize);
+        frontEnd = fe;
         reconstructionChain = setReconstructionChain(recChain);
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
@@ -221,7 +222,7 @@ class ReconstructionOrchestrator {
     Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
         try {
             String topic = ClaraConstants.CONTAINER + ":" + dpe.name;
-            Set<xMsgRegistration> regData = findSubscribers(feHost, topic);
+            Set<xMsgRegistration> regData = findSubscribers(frontEnd, topic);
             Set<ContainerName> regContainers = new HashSet<>();
             for (xMsgRegistration x : regData) {
                 regContainers.add(new ContainerName(x.getName()));
@@ -235,7 +236,7 @@ class ReconstructionOrchestrator {
 
     Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
         try {
-            Set<xMsgRegistration> regData = findSubscribers(feHost, dpe.name.canonicalName());
+            Set<xMsgRegistration> regData = findSubscribers(frontEnd, dpe.name.canonicalName());
             Set<ServiceName> regServices = new HashSet<>();
             for (xMsgRegistration x : regData) {
                 regServices.add(new ServiceName(x.getName()));
@@ -452,9 +453,10 @@ class ReconstructionOrchestrator {
 
 
     // TODO: this should be provided by Clara
-    private Set<xMsgRegistration> findSubscribers(String host, String topic)
+    private Set<xMsgRegistration> findSubscribers(DpeName dpe, String topic)
             throws xMsgException {
-        xMsgRegAddress address = new xMsgRegAddress(host, xMsgConstants.DEFAULT_PORT + 4);
+        xMsgRegAddress address = new xMsgRegAddress(dpe.address().host(),
+                                                    dpe.address().pubPort() + 4);
         xMsgSocketFactory factory = new xMsgSocketFactory(context.getContext());
         xMsgRegDriver driver = new xMsgRegDriver(address, factory);
         driver.connect();
