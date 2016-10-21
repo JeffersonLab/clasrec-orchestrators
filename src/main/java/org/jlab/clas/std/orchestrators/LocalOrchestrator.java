@@ -44,7 +44,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             } else {
                 CommandLineBuilder cl = new CommandLineBuilder(args);
                 if (!cl.success()) {
-                    System.err.printf("Usage:%n%n  local-orchestrator run-chain %s%n%n%n%s",
+                    System.err.printf("Usage:%n%n  local-orchestrator %s%n%n%n%s",
                                       cl.usage(), cl.help());
                     System.exit(1);
                 }
@@ -355,7 +355,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                     .setShortFlag('t')
                     .setDefault("1")
                     .setRequired(false);
-            nThreads.setHelp("The number of threads per node for event processing.");
+            nThreads.setHelp("The number of threads for event processing.");
 
             UnflaggedOption servicesFile = new UnflaggedOption(ARG_SERVICES_FILE)
                     .setStringParser(JSAP.STRING_PARSER)
