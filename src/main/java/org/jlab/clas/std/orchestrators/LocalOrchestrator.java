@@ -287,6 +287,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
 
         private static final String ARG_FRONTEND = "frontEnd";
         private static final String ARG_THREADS = "nThreads";
+        private static final String ARG_FREQUENCY = "frequency";
         private static final String ARG_SERVICES_FILE = "servicesFile";
         private static final String ARG_INPUT_FILE = "inputFile";
         private static final String ARG_OUTPUT_FILE = "outputFile";
@@ -316,6 +317,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             final String servicesConfig = config.getString(ARG_SERVICES_FILE);
             final String inFile = config.getString(ARG_INPUT_FILE);
             final String outFile = config.getString(ARG_OUTPUT_FILE);
+            final int reportFreq = config.getInt(ARG_FREQUENCY);
             final int nc = config.getInt(ARG_THREADS);
             final DpeName frontEnd = parseFrontEnd();
 
@@ -329,6 +331,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             return builder.withOutputFile(outFile)
                           .withFrontEnd(frontEnd)
                           .withThreads(nc)
+                          .withReportFrequency(reportFreq)
                           .build();
         }
 
@@ -357,6 +360,13 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                     .setRequired(false);
             nThreads.setHelp("The number of threads for event processing.");
 
+            FlaggedOption reportFreq = new FlaggedOption(ARG_FREQUENCY)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('r')
+                    .setDefault("500")
+                    .setRequired(false);
+            reportFreq.setHelp("The report frequency of processed events.");
+
             UnflaggedOption servicesFile = new UnflaggedOption(ARG_SERVICES_FILE)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(true);
@@ -375,6 +385,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             try {
                 jsap.registerParameter(frontEnd);
                 jsap.registerParameter(nThreads);
+                jsap.registerParameter(reportFreq);
                 jsap.registerParameter(servicesFile);
                 jsap.registerParameter(inputFile);
                 jsap.registerParameter(outputFile);
