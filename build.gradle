@@ -124,13 +124,6 @@ def deploySpec = copySpec {
 
 
 task deploy(type: Copy, dependsOn: jar) {
-    def etc = new File("$System.env.CLARA_HOME/plugins/clas12/etc")
-    def log = new File("$System.env.CLARA_HOME/plugins/clas12/log")
-    def services = new File("$System.env.CLARA_HOME/plugins/clas12/services")
-    etc.mkdirs()
-    log.mkdirs()
-    services.mkdirs()
-
     def dest = "$System.env.CLARA_HOME"
     into dest
     with deploySpec
@@ -139,6 +132,9 @@ task deploy(type: Copy, dependsOn: jar) {
         if (dest == "null") {
             throw new GradleException('CLARA_HOME not set')
         }
+        file("${dest}/plugins/clas12/etc").mkdirs()
+        file("${dest}/plugins/clas12/log").mkdirs()
+        file("${dest}/plugins/clas12/services").mkdirs()
     }
 }
 
