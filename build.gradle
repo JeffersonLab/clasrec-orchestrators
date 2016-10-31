@@ -113,6 +113,11 @@ def deploySpec = copySpec {
         from ("${projectDir}/config/files.list")
         from ("${projectDir}/config/dpe-clara.jsub")
         from ("${projectDir}/config/process-clara.jsub")
+    }
+
+    into ("bin") {
+        from ("${projectDir}/scripts/local-orchestrator")
+        from ("${projectDir}/scripts/cloud-orchestrator")
         fileMode 0755
     }
 }
