@@ -5,7 +5,7 @@ classpath="${CLARA_HOME}/lib/*:${clas12}/lib/*:${clas12}/services/*"
 orchestrator=org.jlab.clas.std.orchestrators.CloudOrchestrator
 
 if [ -n "${JAVA_HOME}" ]; then
-    java_bin="${JAVA_HOME}"
+    java_bin="${JAVA_HOME}"/bin/java
 else
     java_bin=java
 fi
