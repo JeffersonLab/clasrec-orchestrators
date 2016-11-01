@@ -293,8 +293,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         }
 
         private boolean filterNode(ReconstructionNode node) {
-            String ip = node.dpe.name.address().host();
-            if (ip.equals(setup.frontEnd) && !options.useFrontEnd) {
+            DpeName name = node.dpe.name;
+            if (name.equals(setup.frontEnd) && !options.useFrontEnd) {
                 return true;
             }
             return false;
