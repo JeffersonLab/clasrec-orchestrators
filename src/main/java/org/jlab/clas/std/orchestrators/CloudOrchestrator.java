@@ -48,6 +48,9 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         } catch (OrchestratorConfigError e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
         }
     }
 
