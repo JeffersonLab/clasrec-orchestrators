@@ -11,6 +11,7 @@ import org.jlab.clara.base.DpeName;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.ReconstructionOrchestrator.DpeCallBack;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
+import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 
 import com.martiansoftware.jsap.FlaggedOption;
 import com.martiansoftware.jsap.JSAP;
@@ -47,6 +48,10 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             }
         } catch (OrchestratorConfigError e) {
             System.err.println("Error: " + e.getMessage());
+            System.exit(1);
+        } catch (OrchestratorError e) {
+            Logging.error(e.getMessage());
+            Logging.error("Exiting...");
             System.exit(1);
         } catch (Exception e) {
             e.printStackTrace();
