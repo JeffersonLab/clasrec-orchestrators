@@ -373,7 +373,7 @@ class ReconstructionOrchestrator {
             DpeCallbackWrapper dpeCallback = new DpeCallbackWrapper(callback);
             base.listen().aliveDpes(session).start(dpeCallback);
         } catch (ClaraException e) {
-            throw new OrchestratorError("Could not subscribe to services", e);
+            throw new OrchestratorError("Could not subscribe to front-end to get running DPEs", e);
         }
     }
 
