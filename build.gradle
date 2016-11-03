@@ -90,9 +90,17 @@ task distSources(type: Tar, dependsOn: build) {
     compression = Compression.GZIP
 
     into "${baseName}-${version}-${classifier}"
+
+    from 'README.md'
     from 'build.gradle'
+    from 'gradlew'
+    from 'gradlew.bat'
+
     from ('config') {
         into 'config'
+    }
+    from ('gradle') {
+        into 'gradle'
     }
     from ('scripts') {
         into 'scripts'
@@ -100,7 +108,7 @@ task distSources(type: Tar, dependsOn: build) {
     from ('src') {
         into 'src'
     }
-    from 'services.yaml'
+    from 'services.yaml.sample'
 }
 
 
