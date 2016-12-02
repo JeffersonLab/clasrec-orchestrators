@@ -18,6 +18,17 @@ final class Logging {
     }
 
 
+    static void info(String msg) {
+        String currentTime = getCurrentTime();
+        synchronized (LOCK) {
+            if (debug) {
+                System.out.printf("%s: ", currentTime);
+            }
+            System.out.println(msg);
+        }
+    }
+
+
     static void info(String format, Object... args) {
         String currentTime = getCurrentTime();
         synchronized (LOCK) {
@@ -26,6 +37,17 @@ final class Logging {
             }
             System.out.printf(format, args);
             System.out.println();
+        }
+    }
+
+
+    static void error(String msg) {
+        String currentTime = getCurrentTime();
+        synchronized (LOCK) {
+            if (debug) {
+                System.err.printf("%s: ", currentTime);
+            }
+            System.err.println(msg);
         }
     }
 
