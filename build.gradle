@@ -114,23 +114,6 @@ task distSources(type: Tar, dependsOn: build) {
 
 
 def deploySpec = copySpec {
-<<<<<<< HEAD
-    into ('plugins/clas12/lib') {
-        from configurations.runtime
-        from jar.archivePath
-    }
-
-    into ('plugins/clas12/config') {
-        from ('config/services.yaml')
-        from ('config/files.list')
-        from ('config/dpe-clara.jsub')
-        from ('config/process-clara.jsub')
-    }
-
-    into ('bin') {
-        from 'scripts/local-orchestrator'
-        from 'scripts/cloud-orchestrator'
-=======
     into ('plugins/clas12/lib/clas') {
         from configurations.runtime - configurations.provided
         from "${jar.archivePath}"
@@ -139,17 +122,12 @@ def deploySpec = copySpec {
     into ('plugins/clas12/config') {
         from ("${project.rootDir}/config/services.yaml")
         from ("${project.rootDir}/config/files.list")
->>>>>>> - plugin lib path update
         fileMode 0755
     }
 }
 
 
-<<<<<<< HEAD
 task deploy(type: Copy, overwrite: true, dependsOn: jar) {
-=======
-task deploy(type: Copy, dependsOn: jar) {
->>>>>>> - plugin lib path update
     def dest = "$System.env.CLARA_HOME"
 
     into dest
