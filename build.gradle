@@ -116,7 +116,7 @@ task distSources(type: Tar, dependsOn: build) {
 def deploySpec = copySpec {
     into ('lib') {
 //        from configurations.runtime - configurations.provide
-        from configurations.runtime - configurations.provide
+        from configurations.runtime
     }
 
     into ('plugins/clas12/lib/clas') {
