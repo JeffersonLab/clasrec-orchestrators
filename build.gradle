@@ -137,9 +137,6 @@ task deploy(type: Copy, overwrite: true, dependsOn: jar) {
         if (dest == "null") {
             throw new GradleException('CLARA_HOME not set')
         }
-        file("${dest}/plugins/clas12/etc").mkdirs()
-        file("${dest}/plugins/clas12/log").mkdirs()
-        file("${dest}/plugins/clas12/services").mkdirs()
     }
 }
 
