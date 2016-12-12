@@ -40,6 +40,8 @@ abstract class AbstractOrchestrator {
     private final ExecutorService nodesExecutor;
 
     private final BlockingQueue<ReconstructionFile> processingQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ReconstructionFile> finishedQueue = new LinkedBlockingQueue<>();
+
     private final AtomicInteger startedFilesCounter = new AtomicInteger();
     private final AtomicInteger processedFilesCounter = new AtomicInteger();
 
@@ -331,6 +333,7 @@ abstract class AbstractOrchestrator {
             if (options.bulkStage && node.dpe.name.equals(setup.frontEnd)) {
                 Logging.info("Staging all files on %s...", setup.frontEnd);
                 new Thread(new FileStagingWorker(), "file-staging-thread").start();
+                new Thread(new FileSavingWorker(), "file-saving-thread").start();
             }
 
             freeNodes.add(node);
@@ -439,6 +442,42 @@ abstract class AbstractOrchestrator {
     }
 
 
+    private class FileSavingWorker implements Runnable {
+
+        @Override
+        public void run() {
+            ReconstructionNode localNode = getLocalNode();
+            while (true) {
+                ReconstructionFile recFile = finishedQueue.peek();
+                if (recFile == null) {
+                    orchestrator.sleep(100);
+                    continue;
+                }
+                try {
+                    localNode.setFiles(paths.stageInputFilePath(recFile),
+                                       paths.stageOutputFilePath(recFile));
+                    localNode.saveOutputFile();
+                    Logging.info("Saved file %s on %s", recFile.outputName, localNode.dpe.name);
+                } catch (Exception e) {
+                    Logging.error("Could not save file %s:%n%s",
+                            recFile.outputName, e.getMessage());
+                } finally {
+                    finishedQueue.remove();
+                    if (incrementFinishedFile()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        private ReconstructionNode getLocalNode() {
+            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
+            return new ReconstructionNode(orchestrator, dpe);
+        }
+    }
+
+
+
     private void processAllFiles() throws InterruptedException {
         if (options.maxNodes < ReconstructionOptions.MAX_NODES) {
             while (freeNodes.size() < options.maxNodes) {
@@ -481,6 +520,7 @@ abstract class AbstractOrchestrator {
 
 
     void openFiles(ReconstructionNode node, ReconstructionFile recFile) {
+        node.recFile = recFile;
         if (options.stageFiles) {
             if (options.bulkStage) {
                 node.setFiles(paths.stageInputFilePath(recFile),
@@ -522,21 +562,30 @@ abstract class AbstractOrchestrator {
         try {
             String currentFile = node.currentInputFileName;
             node.closeFiles();
-            if (options.stageFiles) {
+            if (options.stageFiles && !options.bulkStage) {
                 node.saveOutputFile();
                 Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
             }
         } catch (OrchestratorError e) {
             Logging.error("Could not close files on %s:%n%s", node.dpe.name, e.getMessage());
         } finally {
-            int counter = processedFilesCounter.incrementAndGet();
-            if (counter == paths.numFiles()) {
-                stats.stopClock();
-                exitRec(true, "Processing is complete.");
+            if (options.bulkStage) {
+                finishedQueue.add(node.recFile);
             } else {
-                freeNodes.add(node);
+                incrementFinishedFile();
             }
+            freeNodes.add(node);
         }
+    }
+
+    private boolean incrementFinishedFile() {
+        int counter = processedFilesCounter.incrementAndGet();
+        boolean finished = counter == paths.numFiles();
+        if (finished) {
+            stats.stopClock();
+            exitRec(true, "Processing is complete.");
+        }
+        return finished;
     }
 
 

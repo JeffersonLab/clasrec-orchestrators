@@ -30,6 +30,8 @@ class ReconstructionNode {
     final ServiceName readerName;
     final ServiceName writerName;
 
+    volatile ReconstructionFile recFile;
+
     volatile String currentInputFileName;
     volatile String currentInputFile;
     volatile String currentOutputFile;
