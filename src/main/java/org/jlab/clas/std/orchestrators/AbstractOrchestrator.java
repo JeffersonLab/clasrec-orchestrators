@@ -371,7 +371,7 @@ abstract class AbstractOrchestrator {
             try {
                 setupNode(node);
             } catch (OrchestratorError e) {
-                Logging.error("Could not use %s for reconstruction%n%s",
+                Logging.error("Could not use %s for reconstruction:%n%s",
                               node.dpe.name, e.getMessage());
             }
         });
@@ -507,7 +507,8 @@ abstract class AbstractOrchestrator {
             openFiles(node, recFile);
             startFile(node);
         } catch (OrchestratorError e) {
-            Logging.error("Could not use %s for reconstruction%n%s", node.dpe.name, e.getMessage());
+            Logging.error("Could not use %s for reconstruction:%n%s",
+                    node.dpe.name, e.getMessage());
         }
     }
 
@@ -554,7 +555,7 @@ abstract class AbstractOrchestrator {
                 Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
             }
         } catch (OrchestratorError e) {
-            Logging.error("Could not close files on %s%n%s", node.dpe.name, e.getMessage());
+            Logging.error("Could not close files on %s:%n%s", node.dpe.name, e.getMessage());
         } finally {
             int counter = processedFilesCounter.incrementAndGet();
             if (counter == paths.numFiles()) {
