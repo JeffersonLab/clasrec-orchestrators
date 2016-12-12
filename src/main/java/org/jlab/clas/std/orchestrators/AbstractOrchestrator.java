@@ -316,7 +316,7 @@ abstract class AbstractOrchestrator {
             subscribe(node);
 
             Logging.info("Configuring services on %s...", node.dpe.name);
-            if (options.stageFiles) {
+            if (options.stageFiles && !options.bulkStage) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
             // TODO send proper configuration data
@@ -327,6 +327,11 @@ abstract class AbstractOrchestrator {
                 node.configureService(recService, configData);
             }
             Logging.info("All services configured on %s", node.dpe.name);
+
+            if (options.bulkStage && node.dpe.name.equals(setup.frontEnd)) {
+                Logging.info("Staging all files on %s...", setup.frontEnd);
+                new Thread(new FileStagingWorker(), "file-staging-thread").start();
+            }
 
             freeNodes.add(node);
             stats.add(node);
@@ -367,8 +372,10 @@ abstract class AbstractOrchestrator {
 
     private void checkFiles() {
         if (options.stageFiles) {
-            Logging.info("Monitoring files on input directory...");
-            new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+            if (!options.bulkStage) {
+                Logging.info("Monitoring files on input directory...");
+                new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+            }
         } else {
             for (ReconstructionFile file : paths.allFiles) {
                 processingQueue.add(file);
@@ -396,6 +403,38 @@ abstract class AbstractOrchestrator {
                     orchestrator.sleep(100);
                 }
             }
+        }
+    }
+
+
+    private class FileStagingWorker implements Runnable {
+
+        @Override
+        public void run() {
+            BlockingQueue<ReconstructionFile> requestedFiles = new LinkedBlockingDeque<>();
+            for (ReconstructionFile file : paths.allFiles) {
+                requestedFiles.add(file);
+            }
+
+            ReconstructionNode localNode = getLocalNode();
+            localNode.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
+            while (!requestedFiles.isEmpty()) {
+                ReconstructionFile recFile = requestedFiles.element();
+                try {
+                    stats.startClock();
+                    localNode.setFiles(recFile.inputName);
+                    processingQueue.add(recFile);
+                    requestedFiles.remove();
+                } catch (Exception e) {
+                    Logging.error("Could not stage file %s:%n%s",
+                            recFile.inputName, e.getMessage());
+                }
+            }
+        }
+
+        private ReconstructionNode getLocalNode() {
+            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
+            return new ReconstructionNode(orchestrator, dpe);
         }
     }
 
@@ -428,7 +467,9 @@ abstract class AbstractOrchestrator {
 
     void processFile(ReconstructionNode node, ReconstructionFile recFile) {
         try {
-            stats.startClock();
+            if (!options.bulkStage) {
+                stats.startClock();
+            }
             // TODO check DPE is alive
             openFiles(node, recFile);
             startFile(node);
@@ -441,7 +482,12 @@ abstract class AbstractOrchestrator {
 
     void openFiles(ReconstructionNode node, ReconstructionFile recFile) {
         if (options.stageFiles) {
-            node.setFiles(recFile.inputName);
+            if (options.bulkStage) {
+                node.setFiles(paths.stageInputFilePath(recFile),
+                              paths.stageOutputFilePath(recFile));
+            } else {
+                node.setFiles(recFile.inputName);
+            }
         } else {
             node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
         }
