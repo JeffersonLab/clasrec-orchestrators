@@ -126,6 +126,12 @@ def deploySpec = copySpec {
         from ('config/services.yaml')
         from ('config/files.list')
     }
+
+    into ('bin') {
+        from 'scripts/local-orchestrator'
+        from 'scripts/cloud-orchestrator'
+        fileMode 0755
+    }
 }
 
 
