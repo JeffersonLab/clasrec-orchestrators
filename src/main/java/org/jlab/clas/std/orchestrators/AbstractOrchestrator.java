@@ -173,7 +173,7 @@ abstract class AbstractOrchestrator {
             return sum;
         }
 
-        long globalTime() {
+        double globalTime() {
             return endTime.get() - startTime.get();
         }
 
