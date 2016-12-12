@@ -1,10 +1,8 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,7 +17,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
@@ -115,81 +112,6 @@ abstract class AbstractOrchestrator {
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
             this.reportFreq = 0;
-        }
-    }
-
-
-    static class ReconstructionFile {
-
-        final String inputName;
-        final String outputName;
-
-        ReconstructionFile(String inFile, String outFile) {
-            inputName = inFile;
-            outputName = outFile;
-        }
-    }
-
-
-    static class ReconstructionPaths {
-
-        static final String DATA_DIR = System.getenv("CLARA_HOME") + File.separator + "data";
-        static final String CACHE_DIR = "/mss/hallb/exp/raw";
-        static final String INPUT_DIR = DATA_DIR + File.separator + "in";
-        static final String OUTPUT_DIR = DATA_DIR + File.separator + "out";
-        static final String STAGE_DIR = File.separator + "scratch";
-
-        final String inputDir;
-        final String outputDir;
-        final String stageDir;
-
-        private final List<ReconstructionFile> allFiles;
-
-        ReconstructionPaths(String inputFile, String outputFile) {
-            Path inputPath = Paths.get(inputFile);
-            Path outputPath = Paths.get(outputFile);
-
-            String inputName = inputPath.getFileName().toString();
-            String outputName = outputPath.getFileName().toString();
-
-            this.inputDir = getParent(inputPath);
-            this.outputDir = getParent(outputPath);
-            this.stageDir = STAGE_DIR;
-
-            this.allFiles = Arrays.asList(new ReconstructionFile(inputName, outputName));
-        }
-
-        ReconstructionPaths(List<String> inputFiles,
-                            String inputDir,
-                            String outputDir,
-                            String stageDir) {
-            this.inputDir = inputDir;
-            this.outputDir = outputDir;
-            this.stageDir = stageDir;
-            this.allFiles = inputFiles.stream()
-                                      .map(f -> new ReconstructionFile(f, "out_" + f))
-                                      .collect(Collectors.toList());
-        }
-
-        private String getParent(Path file) {
-            Path parent = file.getParent();
-            if (parent == null) {
-                return Paths.get("").toAbsolutePath().toString();
-            } else {
-                return parent.toString();
-            }
-        }
-
-        String inputFilePath(ReconstructionFile recFile) {
-            return inputDir + File.separator + recFile.inputName;
-        }
-
-        String outputFilePath(ReconstructionFile recFile) {
-            return outputDir + File.separator + recFile.outputName;
-        }
-
-        int numFiles() {
-            return allFiles.size();
         }
     }
 
