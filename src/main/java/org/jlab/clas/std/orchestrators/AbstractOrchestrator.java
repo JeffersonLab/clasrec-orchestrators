@@ -67,6 +67,7 @@ abstract class AbstractOrchestrator {
 
         final boolean useFrontEnd;
         final boolean stageFiles;
+        final boolean bulkStage;
         final int poolSize;
         final int maxNodes;
         final int maxThreads;
@@ -80,7 +81,7 @@ abstract class AbstractOrchestrator {
          * Default options.
          */
         ReconstructionOptions() {
-            this(true, true, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
+            this(true, true, false, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
         }
 
         /**
@@ -92,6 +93,7 @@ abstract class AbstractOrchestrator {
                               int reportFreq) {
             this.useFrontEnd = true;
             this.stageFiles = stageFiles;
+            this.bulkStage = false;
             this.poolSize = poolSize;
             this.maxNodes = 1;
             this.maxThreads = maxThreads;
@@ -103,11 +105,13 @@ abstract class AbstractOrchestrator {
          */
         ReconstructionOptions(boolean useFrontEnd,
                               boolean stageFiles,
+                              boolean bulkStage,
                               int poolSize,
                               int maxNodes,
                               int maxThreads) {
             this.useFrontEnd = useFrontEnd;
-            this.stageFiles = stageFiles;
+            this.stageFiles = stageFiles || bulkStage;
+            this.bulkStage = bulkStage;
             this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
