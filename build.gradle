@@ -115,18 +115,16 @@ task distSources(type: Tar, dependsOn: build) {
 
 def deploySpec = copySpec {
     into ('lib') {
-//        from configurations.runtime - configurations.provide
         from configurations.runtime
     }
 
     into ('plugins/clas12/lib/clas') {
-        from "${jar.archivePath}"
+        from jar.archivePath
     }
 
     into ('plugins/clas12/config') {
-        from ("${project.rootDir}/config/services.yaml")
-        from ("${project.rootDir}/config/files.list")
-        fileMode 0755
+        from ('config/services.yaml')
+        from ('config/files.list')
     }
 }
 
