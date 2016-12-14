@@ -589,6 +589,20 @@ abstract class AbstractOrchestrator {
     }
 
 
+    void removeStageDirectories() {
+        if (options.stageFiles) {
+            freeNodes.stream().parallel().forEach(n -> {
+                try {
+                    n.removeStageDir();
+                } catch (OrchestratorError e) {
+                    Logging.error("Could not remove stage directory from %s: %s",
+                            n.dpe.name, e.getMessage());
+                }
+            });
+        }
+    }
+
+
     private class ErrorHandlerCB implements EngineCallback {
 
         private final ReconstructionNode node;

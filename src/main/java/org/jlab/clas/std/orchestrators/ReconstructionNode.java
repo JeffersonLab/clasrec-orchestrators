@@ -151,6 +151,24 @@ class ReconstructionNode {
     }
 
 
+    boolean removeStageDir() {
+        try {
+            JSONObject request = new JSONObject();
+            request.put("type", "exec");
+            request.put("action", "clear_stage");
+            request.put("file", currentInputFileName);
+            EngineData rr = syncSend(stageName, request, 5, TimeUnit.MINUTES);
+            if (rr.getStatus().equals(EngineStatus.ERROR)) {
+                System.err.println(rr.getDescription());
+                return false;
+            }
+            return true;
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not save output", e);
+        }
+    }
+
+
     void openFiles() {
         startTime.set(0);
         eventNumber.set(0);

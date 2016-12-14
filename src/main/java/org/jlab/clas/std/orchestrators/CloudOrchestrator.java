@@ -277,6 +277,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
     @Override
     void end() {
+        removeStageDirectories();
         Logging.info("Local  average event processing time = %.2f ms", stats.localAverage());
         Logging.info("Global average event processing time = %.2f ms", stats.globalAverage());
     }
