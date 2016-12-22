@@ -49,22 +49,6 @@ abstract class AbstractOrchestrator {
     private volatile boolean recStatus;
     private volatile String recMsg = "Could not run reconstruction!";
 
-    static class ReconstructionSetup {
-
-        final DpeName frontEnd;
-        final String session;
-        final List<ServiceInfo> recChain;
-
-        ReconstructionSetup(List<ServiceInfo> recChain,
-                            DpeName frontEnd,
-                            String session) {
-            this.frontEnd = frontEnd;
-            this.session = session;
-            this.recChain = recChain;
-        }
-    }
-
-
     static class ReconstructionOptions {
 
         final boolean useFrontEnd;
@@ -208,8 +192,7 @@ abstract class AbstractOrchestrator {
                          ReconstructionPaths paths,
                          ReconstructionOptions options) {
         try {
-            this.orchestrator = new ReconstructionOrchestrator(
-                    setup.frontEnd, options.poolSize, setup.recChain);
+            this.orchestrator = new ReconstructionOrchestrator(setup, options.poolSize);
 
             this.setup = setup;
             this.paths = paths;

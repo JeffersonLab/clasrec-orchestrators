@@ -161,7 +161,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public LocalOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, "");
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
@@ -415,7 +415,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             DpeName frontEnd = ReconstructionConfigParser.localDpeName();
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, "");
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);

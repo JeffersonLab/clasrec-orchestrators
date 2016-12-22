@@ -55,17 +55,11 @@ class ReconstructionOrchestrator {
     private final ZContext context = new ZContext();
 
 
-    ReconstructionOrchestrator(List<ServiceInfo> recChain)
+    ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize)
             throws ClaraException, IOException {
-        this(ReconstructionConfigParser.localDpeName(), 2, recChain);
-    }
-
-
-    ReconstructionOrchestrator(DpeName fe, int poolSize, List<ServiceInfo> recChain)
-            throws ClaraException, IOException {
-        base = new BaseOrchestrator(fe, poolSize);
-        frontEnd = fe;
-        reconstructionChain = setReconstructionChain(recChain);
+        base = new BaseOrchestrator(setup.frontEnd, poolSize);
+        frontEnd = setup.frontEnd;
+        reconstructionChain = setReconstructionChain(setup.recChain);
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
