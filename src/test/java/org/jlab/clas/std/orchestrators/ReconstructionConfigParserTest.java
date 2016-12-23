@@ -77,6 +77,17 @@ public class ReconstructionConfigParserTest {
 
 
     @Test
+    public void testSelectedIOServices() throws Exception {
+        URL path = getClass().getResource("/services-hipo.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+        Map<String, ServiceInfo> services = parser.parseInputOutputServices();
+
+        assertThat(services, hasEntry(equalTo("reader"), equalTo(ioService("HipoToHipoReader"))));
+        assertThat(services, hasEntry(equalTo("writer"), equalTo(ioService("HipoToHipoWriter"))));
+    }
+
+
+    @Test
     public void testGoodNodesFileYaml() {
         URL path = getClass().getResource("/nodes-ok.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
