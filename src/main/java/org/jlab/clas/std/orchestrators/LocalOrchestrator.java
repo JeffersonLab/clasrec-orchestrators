@@ -73,6 +73,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
      */
     public static final class Builder {
 
+        private final ReconstructionConfigParser parser;
+
         private final List<ServiceInfo> recChain;
         private DpeName frontEnd;
 
@@ -96,7 +98,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                 throw new IllegalArgumentException("inputFile parameter is empty");
             }
 
-            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+            this.parser = new ReconstructionConfigParser(servicesFile);
 
             this.recChain = parser.parseReconstructionChain();
             this.frontEnd = ReconstructionConfigParser.localDpeName();
@@ -161,7 +163,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public LocalOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), "");
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
@@ -415,7 +418,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             DpeName frontEnd = ReconstructionConfigParser.localDpeName();
 
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), "");
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);

@@ -66,6 +66,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
      */
     public static class Builder {
 
+        private final ReconstructionConfigParser parser;
+
         final List<ServiceInfo> recChain;
         final List<String> inputFiles;
 
@@ -96,7 +98,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             if (inputFiles.isEmpty()) {
                 throw new IllegalArgumentException("inputFiles list is empty");
             }
-            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+            this.parser = new ReconstructionConfigParser(servicesFile);
             this.recChain = parser.parseReconstructionChain();
             this.inputFiles = inputFiles;
         }
@@ -248,7 +250,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, session);
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
                     inputDir, outputDir, stageDir);
             ReconstructionOptions options = new ReconstructionOptions(
@@ -392,7 +395,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, session);
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles, bulkStage,
@@ -541,7 +545,9 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, recChain, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                                              parser.parseInputOutputServices(), recChain,
+                                              parser.parseDataTypes(), "");
             ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),

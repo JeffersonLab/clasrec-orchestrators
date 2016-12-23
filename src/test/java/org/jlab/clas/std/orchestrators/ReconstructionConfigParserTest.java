@@ -3,6 +3,7 @@ package org.jlab.clas.std.orchestrators;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.junit.Rule;
@@ -10,7 +11,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.hasEntry;
 
 
 public class ReconstructionConfigParserTest {
@@ -63,6 +66,17 @@ public class ReconstructionConfigParserTest {
 
 
     @Test
+    public void testDefaultIOServices() throws Exception {
+        URL path = getClass().getResource("/services-ok.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+        Map<String, ServiceInfo> services = parser.parseInputOutputServices();
+
+        assertThat(services, hasEntry(equalTo("reader"), equalTo(ioService("EvioToEvioReader"))));
+        assertThat(services, hasEntry(equalTo("writer"), equalTo(ioService("EvioToEvioWriter"))));
+    }
+
+
+    @Test
     public void testGoodNodesFileYaml() {
         URL path = getClass().getResource("/nodes-ok.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
@@ -87,5 +101,12 @@ public class ReconstructionConfigParserTest {
 
         expectedEx.expectMessage("missing list of input-output nodes");
         parser.parseInputOutputNodes();
+    }
+
+
+    private static ServiceInfo ioService(String name) {
+        return new ServiceInfo("org.jlab.clas.std.services.convertors." + name,
+                               ReconstructionConfigParser.getDefaultContainer(),
+                               name);
     }
 }
