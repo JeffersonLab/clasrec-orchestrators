@@ -1,10 +1,8 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,7 +17,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
@@ -43,6 +40,8 @@ abstract class AbstractOrchestrator {
     private final ExecutorService nodesExecutor;
 
     private final BlockingQueue<ReconstructionFile> processingQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ReconstructionFile> finishedQueue = new LinkedBlockingQueue<>();
+
     private final AtomicInteger startedFilesCounter = new AtomicInteger();
     private final AtomicInteger processedFilesCounter = new AtomicInteger();
 
@@ -50,26 +49,11 @@ abstract class AbstractOrchestrator {
     private volatile boolean recStatus;
     private volatile String recMsg = "Could not run reconstruction!";
 
-    static class ReconstructionSetup {
-
-        final DpeName frontEnd;
-        final String session;
-        final List<ServiceInfo> recChain;
-
-        ReconstructionSetup(List<ServiceInfo> recChain,
-                            DpeName frontEnd,
-                            String session) {
-            this.frontEnd = frontEnd;
-            this.session = session;
-            this.recChain = recChain;
-        }
-    }
-
-
     static class ReconstructionOptions {
 
         final boolean useFrontEnd;
         final boolean stageFiles;
+        final boolean bulkStage;
         final int poolSize;
         final int maxNodes;
         final int maxThreads;
@@ -83,7 +67,7 @@ abstract class AbstractOrchestrator {
          * Default options.
          */
         ReconstructionOptions() {
-            this(true, true, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
+            this(true, true, false, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
         }
 
         /**
@@ -95,6 +79,7 @@ abstract class AbstractOrchestrator {
                               int reportFreq) {
             this.useFrontEnd = true;
             this.stageFiles = stageFiles;
+            this.bulkStage = false;
             this.poolSize = poolSize;
             this.maxNodes = 1;
             this.maxThreads = maxThreads;
@@ -106,90 +91,17 @@ abstract class AbstractOrchestrator {
          */
         ReconstructionOptions(boolean useFrontEnd,
                               boolean stageFiles,
+                              boolean bulkStage,
                               int poolSize,
                               int maxNodes,
                               int maxThreads) {
             this.useFrontEnd = useFrontEnd;
-            this.stageFiles = stageFiles;
+            this.stageFiles = stageFiles || bulkStage;
+            this.bulkStage = bulkStage;
             this.poolSize = poolSize;
             this.maxNodes = maxNodes;
             this.maxThreads = maxThreads;
             this.reportFreq = 0;
-        }
-    }
-
-
-    static class ReconstructionFile {
-
-        final String inputName;
-        final String outputName;
-
-        ReconstructionFile(String inFile, String outFile) {
-            inputName = inFile;
-            outputName = outFile;
-        }
-    }
-
-
-    static class ReconstructionPaths {
-
-        static final String DATA_DIR = System.getenv("CLARA_HOME") + File.separator + "data";
-        static final String CACHE_DIR = "/mss/hallb/exp/raw";
-        static final String INPUT_DIR = DATA_DIR + File.separator + "in";
-        static final String OUTPUT_DIR = DATA_DIR + File.separator + "out";
-        static final String STAGE_DIR = File.separator + "scratch";
-
-        final String inputDir;
-        final String outputDir;
-        final String stageDir;
-
-        private final List<ReconstructionFile> allFiles;
-
-        ReconstructionPaths(String inputFile, String outputFile) {
-            Path inputPath = Paths.get(inputFile);
-            Path outputPath = Paths.get(outputFile);
-
-            String inputName = inputPath.getFileName().toString();
-            String outputName = outputPath.getFileName().toString();
-
-            this.inputDir = getParent(inputPath);
-            this.outputDir = getParent(outputPath);
-            this.stageDir = STAGE_DIR;
-
-            this.allFiles = Arrays.asList(new ReconstructionFile(inputName, outputName));
-        }
-
-        ReconstructionPaths(List<String> inputFiles,
-                            String inputDir,
-                            String outputDir,
-                            String stageDir) {
-            this.inputDir = inputDir;
-            this.outputDir = outputDir;
-            this.stageDir = stageDir;
-            this.allFiles = inputFiles.stream()
-                                      .map(f -> new ReconstructionFile(f, "out_" + f))
-                                      .collect(Collectors.toList());
-        }
-
-        private String getParent(Path file) {
-            Path parent = file.getParent();
-            if (parent == null) {
-                return Paths.get("").toAbsolutePath().toString();
-            } else {
-                return parent.toString();
-            }
-        }
-
-        String inputFilePath(ReconstructionFile recFile) {
-            return inputDir + File.separator + recFile.inputName;
-        }
-
-        String outputFilePath(ReconstructionFile recFile) {
-            return outputDir + File.separator + recFile.outputName;
-        }
-
-        int numFiles() {
-            return allFiles.size();
         }
     }
 
@@ -251,7 +163,7 @@ abstract class AbstractOrchestrator {
             return sum;
         }
 
-        long globalTime() {
+        double globalTime() {
             return endTime.get() - startTime.get();
         }
 
@@ -280,8 +192,7 @@ abstract class AbstractOrchestrator {
                          ReconstructionPaths paths,
                          ReconstructionOptions options) {
         try {
-            this.orchestrator = new ReconstructionOrchestrator(
-                    setup.frontEnd, options.poolSize, setup.recChain);
+            this.orchestrator = new ReconstructionOrchestrator(setup, options.poolSize);
 
             this.setup = setup;
             this.paths = paths;
@@ -371,7 +282,7 @@ abstract class AbstractOrchestrator {
             try {
                 setupNode(node);
             } catch (OrchestratorError e) {
-                Logging.error("Could not use %s for reconstruction%n%s",
+                Logging.error("Could not use %s for reconstruction:%n%s",
                               node.dpe.name, e.getMessage());
             }
         });
@@ -390,7 +301,7 @@ abstract class AbstractOrchestrator {
             subscribe(node);
 
             Logging.info("Configuring services on %s...", node.dpe.name);
-            if (options.stageFiles) {
+            if (options.stageFiles && !options.bulkStage) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
             // TODO send proper configuration data
@@ -401,6 +312,12 @@ abstract class AbstractOrchestrator {
                 node.configureService(recService, configData);
             }
             Logging.info("All services configured on %s", node.dpe.name);
+
+            if (options.bulkStage && node.dpe.name.equals(setup.frontEnd)) {
+                Logging.info("Staging all files on %s...", setup.frontEnd);
+                new Thread(new FileStagingWorker(), "file-staging-thread").start();
+                new Thread(new FileSavingWorker(), "file-saving-thread").start();
+            }
 
             freeNodes.add(node);
             stats.add(node);
@@ -441,8 +358,10 @@ abstract class AbstractOrchestrator {
 
     private void checkFiles() {
         if (options.stageFiles) {
-            Logging.info("Monitoring files on input directory...");
-            new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+            if (!options.bulkStage) {
+                Logging.info("Monitoring files on input directory...");
+                new Thread(new FileMonitoringWorker(), "file-monitoring-thread").start();
+            }
         } else {
             for (ReconstructionFile file : paths.allFiles) {
                 processingQueue.add(file);
@@ -474,6 +393,74 @@ abstract class AbstractOrchestrator {
     }
 
 
+    private class FileStagingWorker implements Runnable {
+
+        @Override
+        public void run() {
+            BlockingQueue<ReconstructionFile> requestedFiles = new LinkedBlockingDeque<>();
+            for (ReconstructionFile file : paths.allFiles) {
+                requestedFiles.add(file);
+            }
+
+            ReconstructionNode localNode = getLocalNode();
+            localNode.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
+            while (!requestedFiles.isEmpty()) {
+                ReconstructionFile recFile = requestedFiles.element();
+                try {
+                    stats.startClock();
+                    localNode.setFiles(recFile.inputName);
+                    processingQueue.add(recFile);
+                    requestedFiles.remove();
+                } catch (Exception e) {
+                    Logging.error("Could not stage file %s:%n%s",
+                            recFile.inputName, e.getMessage());
+                }
+            }
+        }
+
+        private ReconstructionNode getLocalNode() {
+            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
+            return new ReconstructionNode(orchestrator, dpe);
+        }
+    }
+
+
+    private class FileSavingWorker implements Runnable {
+
+        @Override
+        public void run() {
+            ReconstructionNode localNode = getLocalNode();
+            while (true) {
+                ReconstructionFile recFile = finishedQueue.peek();
+                if (recFile == null) {
+                    orchestrator.sleep(100);
+                    continue;
+                }
+                try {
+                    localNode.setFiles(paths.stageInputFilePath(recFile),
+                                       paths.stageOutputFilePath(recFile));
+                    localNode.saveOutputFile();
+                    Logging.info("Saved file %s on %s", recFile.outputName, localNode.dpe.name);
+                } catch (Exception e) {
+                    Logging.error("Could not save file %s:%n%s",
+                            recFile.outputName, e.getMessage());
+                } finally {
+                    finishedQueue.remove();
+                    if (incrementFinishedFile()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        private ReconstructionNode getLocalNode() {
+            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
+            return new ReconstructionNode(orchestrator, dpe);
+        }
+    }
+
+
+
     private void processAllFiles() throws InterruptedException {
         if (options.maxNodes < ReconstructionOptions.MAX_NODES) {
             while (freeNodes.size() < options.maxNodes) {
@@ -502,19 +489,28 @@ abstract class AbstractOrchestrator {
 
     void processFile(ReconstructionNode node, ReconstructionFile recFile) {
         try {
-            stats.startClock();
+            if (!options.bulkStage) {
+                stats.startClock();
+            }
             // TODO check DPE is alive
             openFiles(node, recFile);
             startFile(node);
         } catch (OrchestratorError e) {
-            Logging.error("Could not use %s for reconstruction%n%s", node.dpe.name, e.getMessage());
+            Logging.error("Could not use %s for reconstruction:%n%s",
+                    node.dpe.name, e.getMessage());
         }
     }
 
 
     void openFiles(ReconstructionNode node, ReconstructionFile recFile) {
+        node.recFile = recFile;
         if (options.stageFiles) {
-            node.setFiles(recFile.inputName);
+            if (options.bulkStage) {
+                node.setFiles(paths.stageInputFilePath(recFile),
+                              paths.stageOutputFilePath(recFile));
+            } else {
+                node.setFiles(recFile.inputName);
+            }
         } else {
             node.setFiles(paths.inputFilePath(recFile), paths.outputFilePath(recFile));
         }
@@ -549,20 +545,43 @@ abstract class AbstractOrchestrator {
         try {
             String currentFile = node.currentInputFileName;
             node.closeFiles();
-            if (options.stageFiles) {
+            if (options.stageFiles && !options.bulkStage) {
                 node.saveOutputFile();
                 Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
             }
         } catch (OrchestratorError e) {
-            Logging.error("Could not close files on %s%n%s", node.dpe.name, e.getMessage());
+            Logging.error("Could not close files on %s:%n%s", node.dpe.name, e.getMessage());
         } finally {
-            int counter = processedFilesCounter.incrementAndGet();
-            if (counter == paths.numFiles()) {
-                stats.stopClock();
-                exitRec(true, "Processing is complete.");
+            if (options.bulkStage) {
+                finishedQueue.add(node.recFile);
             } else {
-                freeNodes.add(node);
+                incrementFinishedFile();
             }
+            freeNodes.add(node);
+        }
+    }
+
+    private boolean incrementFinishedFile() {
+        int counter = processedFilesCounter.incrementAndGet();
+        boolean finished = counter == paths.numFiles();
+        if (finished) {
+            stats.stopClock();
+            exitRec(true, "Processing is complete.");
+        }
+        return finished;
+    }
+
+
+    void removeStageDirectories() {
+        if (options.stageFiles) {
+            freeNodes.stream().parallel().forEach(n -> {
+                try {
+                    n.removeStageDir();
+                } catch (OrchestratorError e) {
+                    Logging.error("Could not remove stage directory from %s: %s",
+                            n.dpe.name, e.getMessage());
+                }
+            });
         }
     }
 

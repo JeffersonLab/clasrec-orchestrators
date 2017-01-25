@@ -66,6 +66,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
      */
     public static class Builder {
 
+        private final ReconstructionConfigParser parser;
+
         final List<ServiceInfo> recChain;
         final List<String> inputFiles;
 
@@ -73,6 +75,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private String session = "";
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
+        private boolean bulkStage = false;
 
         private int poolSize = ReconstructionOptions.DEFAULT_POOLSIZE;
         private int maxThreads = ReconstructionOptions.MAX_THREADS;
@@ -95,7 +98,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             if (inputFiles.isEmpty()) {
                 throw new IllegalArgumentException("inputFiles list is empty");
             }
-            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+            this.parser = new ReconstructionConfigParser(servicesFile);
             this.recChain = parser.parseReconstructionChain();
             this.inputFiles = inputFiles;
         }
@@ -145,6 +148,26 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          */
         public Builder useStageDirectory() {
             this.stageFiles = true;
+            return this;
+        }
+
+        /**
+         * Stages all input files at once for local access.
+         * By default, all files are expected to be on the input directory.
+         * <p>
+         * When staging is used, all the files will be copied on background from
+         * the input directory into the staging directory.
+         * The output files will also be saved in the stating directory. When the
+         * reconstruction is finished, they will be moved back to the output
+         * directory.
+         * <p>
+         * <b>This is an experimental option, it works when only the local
+         * front-end node is used for reconstruction</b>.
+         *
+         * @see #withStageDirectory(String)
+         */
+        public Builder useBulkStage() {
+            this.bulkStage = true;
             return this;
         }
 
@@ -227,11 +250,12 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, session);
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
                     inputDir, outputDir, stageDir);
             ReconstructionOptions options = new ReconstructionOptions(
-                    useFrontEnd, stageFiles,
+                    useFrontEnd, stageFiles, bulkStage,
                     poolSize, maxNodes, maxThreads);
             return new CloudOrchestrator(setup, paths, options);
         }
@@ -256,6 +280,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
     @Override
     void end() {
+        removeStageDirectories();
         Logging.info("Local  average event processing time = %.2f ms", stats.localAverage());
         Logging.info("Global average event processing time = %.2f ms", stats.globalAverage());
     }
@@ -316,6 +341,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private static final String ARG_SESSION       = "session";
         private static final String ARG_USE_FRONTEND  = "useFrontEnd";
         private static final String ARG_STAGE_FILES   = "stageFiles";
+        private static final String ARG_BULK_STAGE    = "bulkStage";
         private static final String ARG_CACHE_DIR     = "cacheDir";
         private static final String ARG_INPUT_DIR     = "inputDir";
         private static final String ARG_OUTPUT_DIR    = "outputDir";
@@ -359,6 +385,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             String services = config.getString(ARG_SERVICES_FILE);
             String files = config.getString(ARG_INPUT_FILES);
             boolean stageFiles = config.getBoolean(ARG_STAGE_FILES);
+            boolean bulkStage = config.getBoolean(ARG_BULK_STAGE);
 
             String inDir = config.getString(ARG_INPUT_DIR);
             String outDir = config.getString(ARG_OUTPUT_DIR);
@@ -368,10 +395,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, session);
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
-                    useFrontEnd, stageFiles,
+                    useFrontEnd, stageFiles, bulkStage,
                     poolSize, maxNodes, maxThreads);
 
             return new CloudOrchestrator(setup, paths, options);
@@ -416,6 +444,10 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             Switch stageFiles = new Switch(ARG_STAGE_FILES)
                     .setShortFlag('L');
             stageFiles.setHelp("Stage files to the local file-system before using them.");
+
+            Switch bulkStage = new Switch(ARG_BULK_STAGE)
+                    .setShortFlag('B');
+            bulkStage.setHelp("Stage all files at once to the local file-system.");
 
             FlaggedOption tapeDir = new FlaggedOption(ARG_CACHE_DIR)
                     .setStringParser(JSAP.STRING_PARSER)
@@ -482,6 +514,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                 jsap.registerParameter(session);
                 jsap.registerParameter(useFrontEnd);
                 jsap.registerParameter(stageFiles);
+                jsap.registerParameter(bulkStage);
                 jsap.registerParameter(inputDir);
                 jsap.registerParameter(outputDir);
                 jsap.registerParameter(stageDir);
@@ -512,7 +545,9 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles();
 
-            ReconstructionSetup setup = new ReconstructionSetup(recChain, frontEnd, "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
+                                              parser.parseInputOutputServices(), recChain,
+                                              parser.parseDataTypes(), "");
             ReconstructionPaths paths = new ReconstructionPaths(inFiles,
                                               parser.parseDirectory("input"),
                                               parser.parseDirectory("output"),

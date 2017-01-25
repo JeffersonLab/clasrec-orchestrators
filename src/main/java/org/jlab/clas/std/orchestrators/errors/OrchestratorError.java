@@ -1,5 +1,7 @@
 package org.jlab.clas.std.orchestrators.errors;
 
+import org.jlab.clara.base.ClaraUtil;
+
 public class OrchestratorError extends RuntimeException {
 
     private static final long serialVersionUID = -5459481851420223735L;
@@ -19,4 +21,13 @@ public class OrchestratorError extends RuntimeException {
         super(message, cause);
     }
 
+    @Override
+    public String getMessage() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.getMessage());
+        for (Throwable e: ClaraUtil.getThrowableList(getCause())) {
+            sb.append(": ").append(e.getMessage());
+        }
+        return sb.toString();
+    }
 }

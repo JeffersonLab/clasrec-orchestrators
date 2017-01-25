@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,29 +56,23 @@ class ReconstructionOrchestrator {
     private final ZContext context = new ZContext();
 
 
-    ReconstructionOrchestrator(List<ServiceInfo> recChain)
+    ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize)
             throws ClaraException, IOException {
-        this(ReconstructionConfigParser.localDpeName(), 2, recChain);
-    }
-
-
-    ReconstructionOrchestrator(DpeName fe, int poolSize, List<ServiceInfo> recChain)
-            throws ClaraException, IOException {
-        base = new BaseOrchestrator(fe, poolSize);
-        frontEnd = fe;
-        reconstructionChain = setReconstructionChain(recChain);
+        base = new BaseOrchestrator(setup.frontEnd, poolSize);
+        frontEnd = setup.frontEnd;
+        reconstructionChain = setReconstructionChain(setup.recChain);
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
 
-        stage = ioServiceFactory("org.jlab.clas.std.services.system.DataManager",
-                                 "DataManager");
-        reader = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioReader",
-                                  "EvioToEvioReader");
-        writer = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
-                                  "EvioToEvioWriter");
+        stage = Objects.requireNonNull(setup.ioServices.get("stage"), "missing stage service");
+        reader = Objects.requireNonNull(setup.ioServices.get("reader"), "missing reader service");
+        writer = Objects.requireNonNull(setup.ioServices.get("writer"), "missing writer service");
 
-        registerDataTypes();
+        base.registerDataTypes(EngineDataType.JSON,
+                               EngineDataType.STRING,
+                               EngineDataType.SFIXED32);
+        base.registerDataTypes(setup.dataTypes);
     }
 
 
@@ -94,24 +89,6 @@ class ReconstructionOrchestrator {
 
     BaseOrchestrator base() {
         return base;
-    }
-
-
-    private static ServiceInfo ioServiceFactory(String className, String engineName) {
-        String containerName = ReconstructionConfigParser.getDefaultContainer();
-        return new ServiceInfo(className, containerName, engineName);
-    }
-
-
-    // TODO: CLAS12 base package should provide these types
-    private void registerDataTypes() {
-        EngineDataType evio =
-                new EngineDataType("binary/data-evio", EngineDataType.BYTES.serializer());
-
-        base.registerDataTypes(evio,
-                               EngineDataType.JSON,
-                               EngineDataType.STRING,
-                               EngineDataType.SFIXED32);
     }
 
 

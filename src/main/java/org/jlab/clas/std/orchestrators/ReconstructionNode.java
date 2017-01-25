@@ -30,6 +30,8 @@ class ReconstructionNode {
     final ServiceName readerName;
     final ServiceName writerName;
 
+    volatile ReconstructionFile recFile;
+
     volatile String currentInputFileName;
     volatile String currentInputFile;
     volatile String currentOutputFile;
@@ -143,6 +145,24 @@ class ReconstructionNode {
             }
 
             return status;
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not save output", e);
+        }
+    }
+
+
+    boolean removeStageDir() {
+        try {
+            JSONObject request = new JSONObject();
+            request.put("type", "exec");
+            request.put("action", "clear_stage");
+            request.put("file", currentInputFileName);
+            EngineData rr = syncSend(stageName, request, 5, TimeUnit.MINUTES);
+            if (rr.getStatus().equals(EngineStatus.ERROR)) {
+                System.err.println(rr.getDescription());
+                return false;
+            }
+            return true;
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not save output", e);
         }

@@ -8,16 +8,24 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
+import org.jlab.clara.base.error.ClaraException;
+import org.jlab.clara.engine.ClaraSerializer;
+import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.jlab.coda.xmsg.core.xMsgUtil;
 import org.jlab.coda.xmsg.excp.xMsgAddressException;
+import org.jlab.hipo.data.HipoEvent;
 import org.yaml.snakeyaml.Yaml;
 
 import com.martiansoftware.jsap.FlaggedOption;
@@ -99,6 +107,91 @@ public class ReconstructionConfigParser {
 
     public static String getDefaultContainer() {
         return DEFAULT_CONTAINER;
+    }
+
+
+    public static ServiceInfo ioServiceFactory(String className, String engineName) {
+        return new ServiceInfo(className, getDefaultContainer(), engineName);
+    }
+
+
+    private static Map<String, ServiceInfo> defaultIOServices(String dataFormat) {
+        ServiceInfo reader;
+        ServiceInfo writer;
+
+        if (dataFormat.equals("evio")) {
+            reader = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioReader",
+                                      "EvioToEvioReader");
+            writer = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
+                                      "EvioToEvioWriter");
+        } else if (dataFormat.equals("hipo")) {
+            reader = ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoReader",
+                                      "HipoToHipoReader");
+            writer = ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoWriter",
+                                      "HipoToHipoWriter");
+        } else {
+            throw new OrchestratorConfigError("Invalid data format: " + dataFormat);
+        }
+
+        ServiceInfo stage = ioServiceFactory("org.jlab.clas.std.services.system.DataManager",
+                                             "DataManager");
+
+        Map<String, ServiceInfo> services = new HashMap<>();
+        services.put("stage", stage);
+        services.put("reader", reader);
+        services.put("writer", writer);
+        return services;
+    }
+
+
+    private static Set<EngineDataType> defaultDataTypes(String dataFormat) {
+        // TODO: CLAS12 base package should provide these types
+        Set<EngineDataType> dt = new HashSet<>();
+        if (dataFormat.equals("evio")) {
+            dt.add(new EngineDataType("binary/data-evio", EngineDataType.BYTES.serializer()));
+        } else if (dataFormat.equals("hipo")) {
+            dt.add(new EngineDataType("binary/data-hipo", new ClaraSerializer() {
+                @Override
+                public ByteBuffer write(Object data) throws ClaraException {
+                    HipoEvent event = (HipoEvent) data;
+                    return ByteBuffer.wrap(event.getDataBuffer());
+                }
+
+                @Override
+                public Object read(ByteBuffer buffer) throws ClaraException {
+                    return new HipoEvent(buffer.array());
+                }
+            }));
+        } else {
+            throw new OrchestratorConfigError("Invalid data format: " + dataFormat);
+        }
+        return dt;
+    }
+
+
+    public Set<EngineDataType> parseDataTypes() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> io = (Map<String, Object>) config.get("io-services");
+        if (io != null) {
+            String dataFormat = (String) io.get("use");
+            if (dataFormat != null) {
+                return defaultDataTypes(dataFormat);
+            }
+        }
+        return defaultDataTypes("evio");
+    }
+
+
+    public Map<String, ServiceInfo> parseInputOutputServices() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> io = (Map<String, Object>) config.get("io-services");
+        if (io != null) {
+            String dataFormat = (String) io.get("use");
+            if (dataFormat != null) {
+                return defaultIOServices(dataFormat);
+            }
+        }
+        return defaultIOServices("evio");
     }
 
 

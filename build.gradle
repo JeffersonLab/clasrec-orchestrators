@@ -39,6 +39,7 @@ repositories {
 
 dependencies {
     compileOnly 'org.jlab.coda:jclara:4.3-SNAPSHOT'
+    compile 'org.hep.hipo:hipo:2.0-SNAPSHOT'
     compile 'org.jlab.coda:jevio:4.4.6'
     compile 'org.yaml:snakeyaml:1.15'
     compile 'org.json:json:20160212'
@@ -114,18 +115,19 @@ task distSources(type: Tar, dependsOn: build) {
 
 
 def deploySpec = copySpec {
-    into ('lib') {
-//        from configurations.runtime - configurations.provide
-        from configurations.runtime
-    }
-
     into ('plugins/clas12/lib/clas') {
-        from "${jar.archivePath}"
+        from configurations.runtime
+        from jar.archivePath
     }
 
     into ('plugins/clas12/config') {
-        from ("${project.rootDir}/config/services.yaml")
-        from ("${project.rootDir}/config/files.list")
+        from ('config/services.yaml')
+        from ('config/files.list')
+    }
+
+    into ('bin') {
+        from 'scripts/local-orchestrator'
+        from 'scripts/cloud-orchestrator'
         fileMode 0755
     }
 }

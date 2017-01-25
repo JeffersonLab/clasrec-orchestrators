@@ -1,7 +1,7 @@
 #!/bin/sh
 
 clas12="${CLARA_HOME}/plugins/clas12"
-classpath="${CLARA_HOME}/lib/*:${clas12}/lib/*:${clas12}/services/*"
+classpath="${CLARA_HOME}/lib/*:${clas12}/lib/clas/*:${clas12}/lib/services/*"
 orchestrator=org.jlab.clas.std.orchestrators.CloudOrchestrator
 
 if [ -n "${JAVA_HOME}" ]; then
