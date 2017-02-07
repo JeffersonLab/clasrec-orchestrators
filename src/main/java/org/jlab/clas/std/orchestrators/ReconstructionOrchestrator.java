@@ -440,8 +440,8 @@ class ReconstructionOrchestrator {
         try {
             xMsgTopic xtopic = xMsgTopic.wrap(topic);
             xMsgRegistration.Builder regb = xMsgRegistration.newBuilder();
-            regb.setName(xMsgConstants.UNDEFINED);
-            regb.setHost(xMsgConstants.UNDEFINED);
+            regb.setName(ClaraConstants.UNDEFINED);
+            regb.setHost(ClaraConstants.UNDEFINED);
             regb.setPort(xMsgConstants.DEFAULT_PORT);
             regb.setDomain(xtopic.domain());
             regb.setSubject(xtopic.subject());
