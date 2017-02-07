@@ -13,9 +13,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.jlab.clara.base.BaseOrchestrator;
+import org.jlab.clara.base.ClaraFilters;
 import org.jlab.clara.base.ClaraName;
 import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.DpeName;
@@ -23,22 +25,15 @@ import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.GenericCallback;
 import org.jlab.clara.base.ServiceName;
-import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.coda.xmsg.core.xMsg;
-import org.jlab.coda.xmsg.core.xMsgConstants;
 import org.jlab.coda.xmsg.core.xMsgMessage;
 import org.jlab.coda.xmsg.core.xMsgTopic;
 import org.jlab.coda.xmsg.data.xMsgMimeType;
-import org.jlab.coda.xmsg.data.xMsgR.xMsgRegistration;
 import org.jlab.coda.xmsg.excp.xMsgException;
 import org.jlab.coda.xmsg.net.xMsgProxyAddress;
-import org.jlab.coda.xmsg.net.xMsgRegAddress;
-import org.jlab.coda.xmsg.net.xMsgSocketFactory;
-import org.jlab.coda.xmsg.sys.regdis.xMsgRegDriver;
-import org.zeromq.ZContext;
 
 class ReconstructionOrchestrator {
 
@@ -52,8 +47,6 @@ class ReconstructionOrchestrator {
     private final List<ServiceInfo> reconstructionChain;
     private final Set<ContainerName> userContainers;
     private final Map<ServiceName, DeployedService> userServices;
-
-    private final ZContext context = new ZContext();
 
 
     ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize)
@@ -198,14 +191,10 @@ class ReconstructionOrchestrator {
 
     Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
         try {
-            String topic = ClaraConstants.CONTAINER + ":" + dpe.name;
-            Set<xMsgRegistration> regData = findSubscribers(frontEnd, topic);
-            Set<ContainerName> regContainers = new HashSet<>();
-            for (xMsgRegistration x : regData) {
-                regContainers.add(new ContainerName(x.getName()));
-            }
-            return regContainers;
-        } catch (xMsgException e) {
+            return base.query()
+                       .canonicalNames(ClaraFilters.containersByDpe(dpe.name))
+                       .syncRun(3, TimeUnit.SECONDS);
+        } catch (TimeoutException | ClaraException e) {
             throw new OrchestratorError(e);
         }
     }
@@ -213,13 +202,10 @@ class ReconstructionOrchestrator {
 
     Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
         try {
-            Set<xMsgRegistration> regData = findSubscribers(frontEnd, dpe.name.canonicalName());
-            Set<ServiceName> regServices = new HashSet<>();
-            for (xMsgRegistration x : regData) {
-                regServices.add(new ServiceName(x.getName()));
-            }
-            return regServices;
-        } catch (xMsgException e) {
+            return base.query()
+                       .canonicalNames(ClaraFilters.servicesByDpe(dpe.name))
+                       .syncRun(3, TimeUnit.SECONDS);
+        } catch (TimeoutException | ClaraException e) {
             throw new OrchestratorError(e);
         }
     }
@@ -428,31 +414,6 @@ class ReconstructionOrchestrator {
         }
     }
 
-
-    // TODO: this should be provided by Clara
-    private Set<xMsgRegistration> findSubscribers(DpeName dpe, String topic)
-            throws xMsgException {
-        xMsgRegAddress address = new xMsgRegAddress(dpe.address().host(),
-                                                    dpe.address().pubPort() + 4);
-        xMsgSocketFactory factory = new xMsgSocketFactory(context.getContext());
-        xMsgRegDriver driver = new xMsgRegDriver(address, factory);
-        driver.connect();
-        try {
-            xMsgTopic xtopic = xMsgTopic.wrap(topic);
-            xMsgRegistration.Builder regb = xMsgRegistration.newBuilder();
-            regb.setName(ClaraConstants.UNDEFINED);
-            regb.setHost(ClaraConstants.UNDEFINED);
-            regb.setPort(xMsgConstants.DEFAULT_PORT);
-            regb.setDomain(xtopic.domain());
-            regb.setSubject(xtopic.subject());
-            regb.setType(xtopic.type());
-            regb.setOwnerType(xMsgRegistration.OwnerType.SUBSCRIBER);
-            xMsgRegistration data = regb.build();
-            return driver.filterRegistration(base.getName(), data);
-        } finally {
-            driver.close();
-        }
-    }
 
     // TODO: this should be provided by Clara
     String getReport(DpeInfo fe) {
