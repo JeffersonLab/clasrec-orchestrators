@@ -250,7 +250,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         }
 
         void printService(ServiceName service, String label) {
-            long time = benchmark.time(service.canonicalName());
+            long time = benchmark.time(service);
             totalTime += time;
             print(label, time, totalRequests);
         }

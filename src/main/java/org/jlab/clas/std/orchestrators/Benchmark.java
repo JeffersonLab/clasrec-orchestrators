@@ -1,85 +1,48 @@
 package org.jlab.clas.std.orchestrators;
 
 import org.jlab.clara.base.ServiceName;
+import org.jlab.clara.base.ServiceRuntimeData;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 class Benchmark {
 
-    final Map<String, Runtime> runtimeStats = new HashMap<>();
+    final Map<ServiceName, Runtime> runtimeStats = new HashMap<>();
 
     Benchmark(List<ServiceName> services) {
         services.forEach(s -> {
-            runtimeStats.put(s.canonicalName(), new Runtime());
+            runtimeStats.put(s, new Runtime());
         });
     }
 
-    void initialize(String data) {
-        try {
-            Map<String, JSONObject> runtime = parseData(new JSONObject(data));
-            runtime.forEach((n, d) -> {
-                Runtime r = runtimeStats.get(n);
-                if (r != null) {
-                    r.initialTime = d.getLong("exec_time");
-                }
-            });
-        } catch (JSONException e) {
-            throw new OrchestratorError("Invalid runtime report: " + e.getMessage());
-        }
-    }
-
-    void update(String data) {
-        try {
-            Map<String, JSONObject> runtime = parseData(new JSONObject(data));
-            runtime.forEach((n, d) -> {
-                Runtime r = runtimeStats.get(n);
-                if (r != null) {
-                    r.totalTime = d.getLong("exec_time");
-                }
-            });
-        } catch (JSONException e) {
-            throw new OrchestratorError("Invalid runtime report: " + e.getMessage());
-        }
-    }
-
-    private Map<String, JSONObject> parseData(JSONObject runtimeData) {
-        Map<String, JSONObject> runtime = new HashMap<>();
-        JSONArray containersArray = runtimeData.getJSONObject("DPERuntime")
-                                               .getJSONArray("containers");
-        for (int i = 0; i < containersArray.length(); i++) {
-            JSONArray servicesArray = containersArray.getJSONObject(i)
-                                                     .getJSONArray("services");
-            for (int j = 0; j < servicesArray.length(); j++) {
-                JSONObject data = servicesArray.getJSONObject(j);
-                String name = data.getString("name");
-                runtime.put(name, data);
+    void initialize(Set<ServiceRuntimeData> data) {
+        data.forEach(s -> {
+            Runtime r = runtimeStats.get(s.name());
+            if (r != null) {
+                r.initialTime = s.executionTime();
             }
-        }
-        validateData(runtime);
-        return runtime;
+        });
     }
 
-    private void validateData(Map<String, JSONObject> runtime) {
-        for (String service : runtimeStats.keySet()) {
-            JSONObject json = runtime.get(service);
-            if (json == null) {
-                throw new OrchestratorError("Invalid runtime report: missing " + service);
+    void update(Set<ServiceRuntimeData> data) {
+        data.forEach(s -> {
+            Runtime r = runtimeStats.get(s.name());
+            if (r != null) {
+                r.totalTime = s.executionTime();
             }
-        }
+        });
     }
 
-    long time(String key) {
-        Runtime r = runtimeStats.get(key);
+    long time(ServiceName service) {
+        Runtime r = runtimeStats.get(service);
         if (r != null) {
             return r.totalTime - r.initialTime;
         }
-        throw new OrchestratorError("Invalid runtime report: missing " + key);
+        throw new OrchestratorError("Invalid runtime report: missing " + service);
     }
 
 
