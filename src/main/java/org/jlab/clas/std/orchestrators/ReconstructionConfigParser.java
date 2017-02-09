@@ -115,31 +115,47 @@ public class ReconstructionConfigParser {
     }
 
 
-    private static Map<String, ServiceInfo> defaultIOServices(String dataFormat) {
-        ServiceInfo reader;
-        ServiceInfo writer;
-
-        if (dataFormat.equals("evio")) {
-            reader = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioReader",
-                                      "EvioToEvioReader");
-            writer = ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
-                                      "EvioToEvioWriter");
-        } else if (dataFormat.equals("hipo")) {
-            reader = ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoReader",
-                                      "HipoToHipoReader");
-            writer = ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoWriter",
-                                      "HipoToHipoWriter");
-        } else {
-            throw new OrchestratorConfigError("Invalid data format: " + dataFormat);
+    private static ServiceInfo defaultIOService(String service, String dataFormat) {
+        // CHECKSTYLE.OFF: Indentation
+        switch (dataFormat) {
+        case "evio":
+            switch (service) {
+            case "reader":
+                return ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioReader",
+                                        "EvioToEvioReader");
+            case "writer":
+                return ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
+                                        "EvioToEvioWriter");
+            default:
+                throw new OrchestratorConfigError("Invalid IO service key: " + dataFormat);
+            }
+        case "hipo":
+            switch (service) {
+            case "reader":
+                return ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoReader",
+                                        "HipoToHipoReader");
+            case "writer":
+                return ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoWriter",
+                                        "HipoToHipoWriter");
+            default:
+                throw new OrchestratorConfigError("Invalid IO service key: " + dataFormat);
+            }
+        default:
+            throw new OrchestratorConfigError("Unsupported default data format: " + dataFormat);
         }
+        // CHECKSTYLE.ON: Indentation
+    }
+
+
+    private static Map<String, ServiceInfo> defaultIOServices(String dataFormat) {
+        Map<String, ServiceInfo> services = new HashMap<>();
+        services.put("reader", defaultIOService("reader", dataFormat));
+        services.put("writer", defaultIOService("writer", dataFormat));
 
         ServiceInfo stage = ioServiceFactory("org.jlab.clas.std.services.system.DataManager",
                                              "DataManager");
-
-        Map<String, ServiceInfo> services = new HashMap<>();
         services.put("stage", stage);
-        services.put("reader", reader);
-        services.put("writer", writer);
+
         return services;
     }
 
