@@ -1,6 +1,7 @@
 ---
 io-services:
-  use: evio # optional (supported: evio, hipo)
+  reader: evio # optional (supported: evio, hipo)
+  writer: evio # optional (supported: evio, hipo)
 services:
   - class: org.jlab.rec.ec.ECReconstruction
     name: EC

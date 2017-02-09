@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.jlab.clara.base.ClaraLang;
@@ -186,28 +187,47 @@ public class ReconstructionConfigParser {
 
 
     public Set<EngineDataType> parseDataTypes() {
+        Set<EngineDataType> dt = defaultDataTypes("evio");
         @SuppressWarnings("unchecked")
         Map<String, Object> io = (Map<String, Object>) config.get("io-services");
         if (io != null) {
             String dataFormat = (String) io.get("use");
             if (dataFormat != null) {
-                return defaultDataTypes(dataFormat);
+                dt.clear();
+                dt.addAll(defaultDataTypes(dataFormat));
             }
+            Consumer<String> getTypes = key -> {
+                String f = (String) io.get(key);
+                if (f != null) {
+                    dt.addAll(defaultDataTypes(f));
+                }
+            };
+            getTypes.accept("reader");
+            getTypes.accept("writer");
         }
-        return defaultDataTypes("evio");
+        return dt;
     }
 
 
     public Map<String, ServiceInfo> parseInputOutputServices() {
+        Map<String, ServiceInfo> services = defaultIOServices("evio");
         @SuppressWarnings("unchecked")
         Map<String, Object> io = (Map<String, Object>) config.get("io-services");
         if (io != null) {
             String dataFormat = (String) io.get("use");
             if (dataFormat != null) {
-                return defaultIOServices(dataFormat);
+                services.putAll(defaultIOServices(dataFormat));
             }
+            Consumer<String> getTypes = key -> {
+                String f = (String) io.get(key);
+                if (f != null) {
+                    services.put(key, defaultIOService(key, f));
+                }
+            };
+            getTypes.accept("reader");
+            getTypes.accept("writer");
         }
-        return defaultIOServices("evio");
+        return services;
     }
 
 

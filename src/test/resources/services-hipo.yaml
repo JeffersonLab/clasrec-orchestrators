@@ -1,6 +1,7 @@
 ---
 io-services:
-  use: hipo
+  reader: hipo
+  writer: hipo
 services:
   - class: org.jlab.clas12.ec.services.ECReconstruction
     name: ECReconstruction
