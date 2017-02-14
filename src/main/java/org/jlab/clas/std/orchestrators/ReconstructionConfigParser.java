@@ -99,7 +99,7 @@ public class ReconstructionConfigParser {
             Map<String, Object> config = (Map<String, Object>) yaml.load(input);
             this.config = config;
         } catch (IOException e) {
-            throw new OrchestratorConfigError(e);
+            throw error(e);
         }
     }
 
@@ -126,7 +126,7 @@ public class ReconstructionConfigParser {
                 return ioServiceFactory("org.jlab.clas.std.services.convertors.EvioToEvioWriter",
                                         "EvioToEvioWriter");
             default:
-                throw new OrchestratorConfigError("Invalid IO service key: " + dataFormat);
+                throw error("Invalid IO service key: " + dataFormat);
             }
         case "hipo":
             switch (service) {
@@ -137,10 +137,10 @@ public class ReconstructionConfigParser {
                 return ioServiceFactory("org.jlab.clas.std.services.convertors.HipoToHipoWriter",
                                         "HipoToHipoWriter");
             default:
-                throw new OrchestratorConfigError("Invalid IO service key: " + dataFormat);
+                throw error("Invalid IO service key: " + dataFormat);
             }
         default:
-            throw new OrchestratorConfigError("Unsupported default data format: " + dataFormat);
+            throw error("Unsupported default data format: " + dataFormat);
         }
         // CHECKSTYLE.ON: Indentation
     }
@@ -178,7 +178,7 @@ public class ReconstructionConfigParser {
                 }
             }));
         } else {
-            throw new OrchestratorConfigError("Invalid data format: " + dataFormat);
+            throw error("Invalid data format: " + dataFormat);
         }
         return dt;
     }
@@ -234,7 +234,7 @@ public class ReconstructionConfigParser {
         @SuppressWarnings("unchecked")
         List<Map<String, String>> sl = (List<Map<String, String>>) config.get("services");
         if (sl == null) {
-            throw new OrchestratorConfigError("missing list of services");
+            throw error("missing list of services");
         }
         String container = (String) config.get("container");
         if (container == null) {
@@ -245,16 +245,15 @@ public class ReconstructionConfigParser {
             String serviceClass = s.get("class");
             String serviceContainer = s.get("container");
             if (serviceName == null || serviceClass == null) {
-                throw new OrchestratorConfigError("missing name or class of service");
+                throw error("missing name or class of service");
             }
             if (serviceContainer == null) {
                 serviceContainer = container;
             }
             ServiceInfo service = new ServiceInfo(serviceClass, serviceContainer, serviceName);
             if (services.contains(service)) {
-                String msg = String.format("duplicated service  name = '%s' container = '%s'",
-                                           serviceName, serviceContainer);
-                throw new OrchestratorConfigError(msg);
+                throw error(String.format("duplicated service  name = '%s' container = '%s'",
+                                          serviceName, serviceContainer));
             }
             services.add(service);
         }
@@ -277,7 +276,7 @@ public class ReconstructionConfigParser {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> sl = (List<Map<String, Object>>) config.get(nodeType);
         if (sl == null) {
-            throw new OrchestratorConfigError("missing list of " + nodeType + " nodes");
+            throw error("missing list of " + nodeType + " nodes");
         }
         String defaultClaraServices = (String) config.get("clara-home");
         if (defaultClaraServices == null) {
@@ -286,7 +285,7 @@ public class ReconstructionConfigParser {
         for (Map<String, Object> s : sl) {
             String dpeAddress = (String) s.get("name");
             if (dpeAddress == null) {
-                throw new OrchestratorConfigError("missing name of " + nodeType + " node");
+                throw error("missing name of " + nodeType + " node");
             }
             Integer dpeCores = (Integer) s.get("cores");
             if (dpeCores == null) {
@@ -319,7 +318,7 @@ public class ReconstructionConfigParser {
         try {
             return xMsgUtil.toHostAddress(host);
         } catch (UncheckedIOException e) {
-            throw new OrchestratorConfigError("node name not known: " + host);
+            throw error("node name not known: " + host);
         }
     }
 
@@ -327,7 +326,7 @@ public class ReconstructionConfigParser {
     public String parseInputFile() {
         String inputFile = (String) config.get("input-file");
         if (inputFile == null) {
-            throw new OrchestratorConfigError("missing input file");
+            throw error("missing input file");
         }
         return inputFile;
     }
@@ -336,7 +335,7 @@ public class ReconstructionConfigParser {
     public String parseOutputFile() {
         String outputFile = (String) config.get("output-file");
         if (outputFile == null) {
-            throw new OrchestratorConfigError("missing output file");
+            throw error("missing output file");
         }
         return outputFile;
     }
@@ -345,11 +344,10 @@ public class ReconstructionConfigParser {
     public int parseNumberOfThreads() {
         Integer nt = (Integer) config.get("threads");
         if (nt == null) {
-            throw new OrchestratorConfigError("missing number of threads");
+            throw error("missing number of threads");
         }
         if (nt <= 0) {
-            String msg = String.format("bad number of threads: %d", nt);
-            throw new OrchestratorConfigError(msg);
+            throw error(String.format("bad number of threads: %d", nt));
         }
         return nt.intValue();
     }
@@ -359,11 +357,11 @@ public class ReconstructionConfigParser {
         @SuppressWarnings("unchecked")
         Map<String, Object> dirsConfig = (Map<String, Object>) config.get("dirs");
         if (dirsConfig == null) {
-            throw new OrchestratorConfigError("missing directories configuration");
+            throw error("missing directories configuration");
         }
         String dir = (String) dirsConfig.get(key);
         if (dir == null) {
-            throw new OrchestratorConfigError("missing directory path: " + key);
+            throw error("missing directory path: " + key);
         }
         return dir;
 
@@ -378,7 +376,7 @@ public class ReconstructionConfigParser {
                         .filter(line -> !pattern.matcher(line).matches())
                         .collect(Collectors.toList());
         } catch (IOException e) {
-            throw new OrchestratorConfigError("Could not read file " + inputFilesList);
+            throw error("Could not read file " + inputFilesList);
         }
     }
 
@@ -387,7 +385,7 @@ public class ReconstructionConfigParser {
         @SuppressWarnings("unchecked")
         List<String> files = (List<String>) config.get("files");
         if (files == null) {
-            throw new OrchestratorConfigError("missing list of files");
+            throw error("missing list of files");
         }
         return files;
     }
@@ -397,19 +395,27 @@ public class ReconstructionConfigParser {
         @SuppressWarnings("unchecked")
         Map<String, Object> runConfig = (Map<String, Object>) config.get("run");
         if (runConfig == null) {
-            throw new OrchestratorConfigError("missing runtime configuration");
+            throw error("missing runtime configuration");
         }
         Integer times = (Integer) runConfig.get("times");
         if (times == null) {
-            throw new OrchestratorConfigError("missing processing times number");
+            throw error("missing processing times number");
         }
         if (times <= 0) {
-            String msg = String.format("bad number of processing times: %d", times);
-            throw new OrchestratorConfigError(msg);
+            throw error(String.format("bad number of processing times: %d", times));
         }
         return times.intValue();
     }
 
+
+    private static OrchestratorConfigError error(String msg) {
+        return new OrchestratorConfigError(msg);
+    }
+
+
+    private static OrchestratorConfigError error(Throwable cause) {
+        return new OrchestratorConfigError(cause);
+    }
 
 
     public static class ConfigFileChecker {
