@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
@@ -25,6 +26,9 @@ import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.jlab.coda.xmsg.core.xMsgUtil;
 import org.jlab.hipo.data.HipoEvent;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.yaml.snakeyaml.Yaml;
 
 import com.martiansoftware.jsap.FlaggedOption;
@@ -89,7 +93,7 @@ public class ReconstructionConfigParser {
 
     private static final String DEFAULT_CONTAINER = System.getProperty("user.name");
 
-    private final Map<String, Object> config;
+    private final JSONObject config;
 
 
     public ReconstructionConfigParser(String configFilePath) {
@@ -97,7 +101,7 @@ public class ReconstructionConfigParser {
             Yaml yaml = new Yaml();
             @SuppressWarnings("unchecked")
             Map<String, Object> config = (Map<String, Object>) yaml.load(input);
-            this.config = config;
+            this.config = new JSONObject(config);
         } catch (IOException e) {
             throw error(e);
         }
@@ -186,17 +190,16 @@ public class ReconstructionConfigParser {
 
     public Set<EngineDataType> parseDataTypes() {
         Set<EngineDataType> dt = defaultDataTypes("evio");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> io = (Map<String, Object>) config.get("io-services");
+        JSONObject io = config.optJSONObject("io-services");
         if (io != null) {
-            String dataFormat = (String) io.get("use");
-            if (dataFormat != null) {
+            String dataFormat = io.optString("use");
+            if (!dataFormat.isEmpty()) {
                 dt.clear();
                 dt.addAll(defaultDataTypes(dataFormat));
             }
             Consumer<String> getTypes = key -> {
-                String f = (String) io.get(key);
-                if (f != null) {
+                String f = io.optString(key);
+                if (!f.isEmpty()) {
                     dt.addAll(defaultDataTypes(f));
                 }
             };
@@ -209,16 +212,15 @@ public class ReconstructionConfigParser {
 
     public Map<String, ServiceInfo> parseInputOutputServices() {
         Map<String, ServiceInfo> services = defaultIOServices("evio");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> io = (Map<String, Object>) config.get("io-services");
+        JSONObject io = config.optJSONObject("io-services");
         if (io != null) {
-            String dataFormat = (String) io.get("use");
-            if (dataFormat != null) {
+            String dataFormat = io.optString("use");
+            if (!dataFormat.isEmpty()) {
                 services.putAll(defaultIOServices(dataFormat));
             }
             Consumer<String> getTypes = key -> {
-                String f = (String) io.get(key);
-                if (f != null) {
+                String f = io.optString(key);
+                if (!f.isEmpty()) {
                     services.put(key, defaultIOService(key, f));
                 }
             };
@@ -231,29 +233,23 @@ public class ReconstructionConfigParser {
 
     public List<ServiceInfo> parseReconstructionChain() {
         List<ServiceInfo> services = new ArrayList<ServiceInfo>();
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> sl = (List<Map<String, String>>) config.get("services");
+        JSONArray sl = config.optJSONArray("services");
         if (sl == null) {
             throw error("missing list of services");
         }
-        String container = (String) config.get("container");
-        if (container == null) {
-            container = DEFAULT_CONTAINER;
-        }
-        for (Map<String, String> s : sl) {
-            String serviceName = s.get("name");
-            String serviceClass = s.get("class");
-            String serviceContainer = s.get("container");
-            if (serviceName == null || serviceClass == null) {
+        String defaultContainer = config.optString("container", DEFAULT_CONTAINER);
+        for (int i = 0; i < sl.length(); i++) {
+            JSONObject s = sl.getJSONObject(i);
+            String name = s.optString("name");
+            String classPath = s.optString("class");
+            String container = s.optString("container", defaultContainer);
+            if (name.isEmpty() || classPath.isEmpty()) {
                 throw error("missing name or class of service");
             }
-            if (serviceContainer == null) {
-                serviceContainer = container;
-            }
-            ServiceInfo service = new ServiceInfo(serviceClass, serviceContainer, serviceName);
+            ServiceInfo service = new ServiceInfo(classPath, container, name);
             if (services.contains(service)) {
                 throw error(String.format("duplicated service  name = '%s' container = '%s'",
-                                          serviceName, serviceContainer));
+                                          name, container));
             }
             services.add(service);
         }
@@ -273,30 +269,21 @@ public class ReconstructionConfigParser {
 
     private List<DpeInfo> parseNodes(String nodeType) {
         List<DpeInfo> dpes = new ArrayList<DpeInfo>();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> sl = (List<Map<String, Object>>) config.get(nodeType);
-        if (sl == null) {
+        JSONArray dl = config.optJSONArray(nodeType);
+        if (dl == null) {
             throw error("missing list of " + nodeType + " nodes");
         }
-        String defaultClaraServices = (String) config.get("clara-home");
-        if (defaultClaraServices == null) {
-            defaultClaraServices = DpeInfo.DEFAULT_CLARA_HOME;
-        }
-        for (Map<String, Object> s : sl) {
-            String dpeAddress = (String) s.get("name");
-            if (dpeAddress == null) {
+        String defaultClaraHome = config.optString("clara-home", DpeInfo.DEFAULT_CLARA_HOME);
+        for (int i = 0; i < dl.length(); i++) {
+            JSONObject d = dl.getJSONObject(i);
+            String address = d.optString("name");
+            if (address.isEmpty()) {
                 throw error("missing name of " + nodeType + " node");
             }
-            Integer dpeCores = (Integer) s.get("cores");
-            if (dpeCores == null) {
-                dpeCores = 0;
-            }
-            String claraServices = (String) s.get("clara-home");
-            if (claraServices == null) {
-                claraServices = defaultClaraServices;
-            }
-            DpeName dpeName = new DpeName(hostAddress(dpeAddress), ClaraLang.JAVA);
-            dpes.add(new DpeInfo(dpeName, dpeCores, claraServices));
+            DpeName name = new DpeName(hostAddress(address), ClaraLang.JAVA);
+            int cores = d.optInt("cores", 0);
+            String claraHome = d.optString("clara-home", defaultClaraHome);
+            dpes.add(new DpeInfo(name, cores, claraHome));
         }
         return dpes;
     }
@@ -324,8 +311,8 @@ public class ReconstructionConfigParser {
 
 
     public String parseInputFile() {
-        String inputFile = (String) config.get("input-file");
-        if (inputFile == null) {
+        String inputFile = config.optString("input-file");
+        if (inputFile.isEmpty()) {
             throw error("missing input file");
         }
         return inputFile;
@@ -333,8 +320,8 @@ public class ReconstructionConfigParser {
 
 
     public String parseOutputFile() {
-        String outputFile = (String) config.get("output-file");
-        if (outputFile == null) {
+        String outputFile = config.optString("output-file");
+        if (outputFile.isEmpty()) {
             throw error("missing output file");
         }
         return outputFile;
@@ -342,29 +329,28 @@ public class ReconstructionConfigParser {
 
 
     public int parseNumberOfThreads() {
-        Integer nt = (Integer) config.get("threads");
-        if (nt == null) {
+        String key = "threads";
+        if (!config.has(key)) {
             throw error("missing number of threads");
         }
+        int nt = config.optInt(key);
         if (nt <= 0) {
-            throw error(String.format("bad number of threads: %d", nt));
+            throw error(String.format("invalid number of threads"));
         }
-        return nt.intValue();
+        return nt;
     }
 
 
     public String parseDirectory(String key) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> dirsConfig = (Map<String, Object>) config.get("dirs");
+        JSONObject dirsConfig = config.optJSONObject("dirs");
         if (dirsConfig == null) {
             throw error("missing directories configuration");
         }
-        String dir = (String) dirsConfig.get(key);
-        if (dir == null) {
+        String dir = dirsConfig.optString(key);
+        if (dir.isEmpty()) {
             throw error("missing directory path: " + key);
         }
         return dir;
-
     }
 
 
@@ -382,29 +368,34 @@ public class ReconstructionConfigParser {
 
 
     public List<String> readInputFiles() {
-        @SuppressWarnings("unchecked")
-        List<String> files = (List<String>) config.get("files");
+        JSONArray files = config.optJSONArray("files");
         if (files == null) {
             throw error("missing list of files");
         }
-        return files;
+        try {
+            return IntStream.range(0, files.length())
+                            .mapToObj(files::getString)
+                            .collect(Collectors.toList());
+        } catch (JSONException e) {
+            throw error("invalid list of files");
+        }
     }
 
 
     public int parseProcessingTimes() {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> runConfig = (Map<String, Object>) config.get("run");
+        JSONObject runConfig = config.optJSONObject("run");
         if (runConfig == null) {
             throw error("missing runtime configuration");
         }
-        Integer times = (Integer) runConfig.get("times");
-        if (times == null) {
+        String key = "times";
+        if (!config.has(key)) {
             throw error("missing processing times number");
         }
+        int times = config.optInt(key);
         if (times <= 0) {
-            throw error(String.format("bad number of processing times: %d", times));
+            throw error(String.format("invalid number of processing times"));
         }
-        return times.intValue();
+        return times;
     }
 
 
