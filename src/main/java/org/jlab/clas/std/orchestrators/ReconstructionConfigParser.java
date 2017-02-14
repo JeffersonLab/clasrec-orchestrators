@@ -1,14 +1,12 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
@@ -372,40 +371,15 @@ public class ReconstructionConfigParser {
 
 
     public List<String> readInputFiles(String inputFilesList) {
-        List<String> files = new ArrayList<String>();
-        File file = new File(inputFilesList);
-        BufferedReader reader = null;
-        Pattern pattern = Pattern.compile("^\\s*#.*$");
         try {
-            reader = new BufferedReader(new FileReader(file));
-            while (true) {
-                String line = reader.readLine();
-                if (line == null) { // no more lines
-                    break;
-                }
-                line = line.trim();
-                if (line.length() == 0) { // empty line
-                    continue;
-                }
-                if (pattern.matcher(line).matches()) { // commented line
-                    continue;
-                }
-                files.add(line);
-            }
-        } catch (FileNotFoundException e) {
-            throw new OrchestratorConfigError(e);
+            Pattern pattern = Pattern.compile("^\\s*#.*$");
+            return Files.lines(Paths.get(inputFilesList))
+                        .filter(line -> !line.isEmpty())
+                        .filter(line -> !pattern.matcher(line).matches())
+                        .collect(Collectors.toList());
         } catch (IOException e) {
             throw new OrchestratorConfigError("Could not read file " + inputFilesList);
-        } finally {
-            try {
-                if (reader != null) {
-                    reader.close();
-                }
-            } catch (IOException e) {
-                System.err.println("Could not close config file.");
-            }
         }
-        return files;
     }
 
 

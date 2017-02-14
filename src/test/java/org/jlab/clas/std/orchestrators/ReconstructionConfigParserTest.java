@@ -2,6 +2,7 @@ package org.jlab.clas.std.orchestrators;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -112,6 +113,20 @@ public class ReconstructionConfigParserTest {
 
         expectedEx.expectMessage("missing list of input-output nodes");
         parser.parseInputOutputNodes();
+    }
+
+
+    @Test
+    public void testInputFilesList() {
+        URL config = getClass().getResource("/nodes-ok.yaml");
+        URL files = getClass().getResource("/files.list");
+
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(config.getPath());
+
+        List<String> expected = Arrays.asList("file1.ev", "file2.ev", "file3.ev",
+                                              "file4.ev", "file5.ev");
+
+        assertThat(parser.readInputFiles(files.getPath()), is(expected));
     }
 
 
