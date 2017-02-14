@@ -1,6 +1,5 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,7 +32,6 @@ import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 class ReconstructionOrchestrator {
 
     final BaseOrchestrator base;
-    final DpeName frontEnd;
 
     private final ServiceInfo stage;
     private final ServiceInfo reader;
@@ -44,10 +42,8 @@ class ReconstructionOrchestrator {
     private final Map<ServiceName, DeployedService> userServices;
 
 
-    ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize)
-            throws ClaraException, IOException {
+    ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize) {
         base = new BaseOrchestrator(setup.frontEnd, poolSize);
-        frontEnd = setup.frontEnd;
         reconstructionChain = setReconstructionChain(setup.recChain);
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
@@ -140,25 +136,6 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void registerContainer(ServiceInfo service, DpeInfo dpe) {
-        ContainerName container = new ContainerName(dpe.name, service.cont);
-        userContainers.add(container);
-    }
-
-
-    void registerInputOutputContainer(DpeInfo dpe) {
-        registerContainer(reader, dpe);
-        registerContainer(writer, dpe);
-    }
-
-
-    void registerReconstructionContainers(DpeInfo dpe) {
-        for (ServiceInfo service : reconstructionChain) {
-            registerContainer(service, dpe);
-        }
-    }
-
-
     ServiceName getStageServiceName(DpeInfo ioDpe) {
         return getServiceName(ioDpe, stage);
     }
@@ -184,7 +161,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
+    private Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
         try {
             return base.query()
                        .canonicalNames(ClaraFilters.containersByDpe(dpe.name))
@@ -195,7 +172,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
+    private Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
         try {
             return base.query()
                        .canonicalNames(ClaraFilters.servicesByDpe(dpe.name))
@@ -204,6 +181,7 @@ class ReconstructionOrchestrator {
             throw new OrchestratorError(e);
         }
     }
+
 
     private Set<ServiceName> findMissingServices(List<ServiceName> services,
                                                  Set<ServiceName> regServices) {
@@ -310,39 +288,17 @@ class ReconstructionOrchestrator {
     }
 
 
-    void removeUserContainers() {
-        for (ContainerName container : userContainers) {
-            try {
-                base.exit(container).run();
-            } catch (ClaraException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-
     private ServiceName getServiceName(DpeInfo dpe, ServiceInfo service) {
         return new ServiceName(dpe.name, service.cont, service.name);
     }
 
 
-    void listenDpes(DpeCallBack callback, String session) {
+    void subscribeDpes(DpeCallBack callback, String session) {
         try {
             DpeCallbackWrapper dpeCallback = new DpeCallbackWrapper(callback);
             base.listen().aliveDpes(session).start(dpeCallback);
         } catch (ClaraException e) {
             throw new OrchestratorError("Could not subscribe to front-end to get running DPEs", e);
-        }
-    }
-
-
-    Set<ServiceRuntimeData> getReport(DpeInfo dpe) {
-        try {
-            return base.query()
-                       .runtimeData(ClaraFilters.servicesByDpe(dpe.name))
-                       .syncRun(5, TimeUnit.SECONDS);
-        } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError(e);
         }
     }
 
@@ -365,6 +321,22 @@ class ReconstructionOrchestrator {
     }
 
 
+    Set<ServiceRuntimeData> getReport(DpeName dpe) {
+        try {
+            return base.query()
+                       .runtimeData(ClaraFilters.servicesByDpe(dpe))
+                       .syncRun(5, TimeUnit.SECONDS);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError(e);
+        }
+    }
+
+
+    DpeName getFrontEnd() {
+        return base.getFrontEnd();
+    }
+
+
     public void sleep(long ms) {
         try {
             Thread.sleep(ms);
@@ -376,6 +348,7 @@ class ReconstructionOrchestrator {
 
 
     private class DeployedService {
+
         final ServiceInfo service;
         final DpeInfo dpe;
         final int poolsize;
@@ -399,11 +372,9 @@ class ReconstructionOrchestrator {
 
         final DpeCallBack callback;
 
-
         DpeCallbackWrapper(DpeCallBack callback) {
             this.callback = callback;
         }
-
 
         @Override
         public void callback(String data) {

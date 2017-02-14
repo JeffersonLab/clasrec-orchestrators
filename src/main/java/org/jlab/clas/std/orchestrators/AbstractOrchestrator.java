@@ -1,6 +1,5 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -21,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
-import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
@@ -191,21 +189,17 @@ abstract class AbstractOrchestrator {
     AbstractOrchestrator(ReconstructionSetup setup,
                          ReconstructionPaths paths,
                          ReconstructionOptions options) {
-        try {
-            this.orchestrator = new ReconstructionOrchestrator(setup, options.poolSize);
+        this.orchestrator = new ReconstructionOrchestrator(setup, options.poolSize);
 
-            this.setup = setup;
-            this.paths = paths;
-            this.options = options;
+        this.setup = setup;
+        this.paths = paths;
+        this.options = options;
 
-            this.freeNodes = new LinkedBlockingQueue<>();
-            this.nodesExecutor = Executors.newCachedThreadPool();
+        this.freeNodes = new LinkedBlockingQueue<>();
+        this.nodesExecutor = Executors.newCachedThreadPool();
 
-            this.recSem = new Semaphore(1);
-            this.stats = new ReconstructionStats();
-        } catch (ClaraException | IOException e) {
-            throw new OrchestratorError("Could not connect to Clara", e);
-        }
+        this.recSem = new Semaphore(1);
+        this.stats = new ReconstructionStats();
     }
 
 

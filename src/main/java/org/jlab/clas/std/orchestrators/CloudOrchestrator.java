@@ -274,7 +274,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
     void start() {
         printStartup();
         Logging.info("Waiting for reconstruction nodes...");
-        orchestrator.listenDpes(new DpeReportCB(), setup.session);
+        orchestrator.subscribeDpes(new DpeReportCB(), setup.session);
     }
 
 
