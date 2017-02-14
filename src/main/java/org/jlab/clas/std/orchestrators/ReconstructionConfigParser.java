@@ -25,7 +25,6 @@ import org.jlab.clara.engine.ClaraSerializer;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.jlab.coda.xmsg.core.xMsgUtil;
-import org.jlab.coda.xmsg.excp.xMsgAddressException;
 import org.jlab.hipo.data.HipoEvent;
 import org.yaml.snakeyaml.Yaml;
 
@@ -298,12 +297,8 @@ public class ReconstructionConfigParser {
             if (claraServices == null) {
                 claraServices = defaultClaraServices;
             }
-            try {
-                DpeName dpeName = new DpeName(hostAddress(dpeAddress), ClaraLang.JAVA);
-                dpes.add(new DpeInfo(dpeName, dpeCores, claraServices));
-            } catch (xMsgAddressException e) {
-                throw new OrchestratorConfigError("node name not known: " + dpeAddress);
-            }
+            DpeName dpeName = new DpeName(hostAddress(dpeAddress), ClaraLang.JAVA);
+            dpes.add(new DpeInfo(dpeName, dpeCores, claraServices));
         }
         return dpes;
     }
