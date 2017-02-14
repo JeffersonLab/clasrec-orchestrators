@@ -41,7 +41,7 @@ class ReconstructionOrchestrator {
 
     private final List<ServiceInfo> reconstructionChain;
     private final Set<ContainerName> userContainers;
-    private final Map<ServiceName, DeployedService> userServices;
+    private final Map<ServiceName, DeployInfo> userServices;
 
 
     ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize) {
@@ -79,17 +79,21 @@ class ReconstructionOrchestrator {
 
 
     private void deployService(ServiceName service, String classPath, int poolsize) {
+        deployService(new DeployInfo(service, classPath, poolsize));
+    }
+
+    private void deployService(DeployInfo service) {
         try {
-            ContainerName containerName = service.container();
+            ContainerName containerName = service.name.container();
             if (!userContainers.contains(containerName)) {
                 deployContainer(containerName);
                 userContainers.add(containerName);
             }
-            base.deploy(service, classPath).withPoolsize(poolsize).run();
-            userServices.put(service, new DeployedService(service, classPath, poolsize));
+            base.deploy(service.name, service.classPath).withPoolsize(service.poolSize).run();
+            userServices.put(service.name, service);
         } catch (ClaraException e) {
             String errorMsg = String.format("failed request to deploy service = %s  class = %s",
-                                            service, classPath);
+                                            service.name, service.classPath);
             throw new OrchestratorError(errorMsg, e);
         }
     }
@@ -229,9 +233,9 @@ class ReconstructionOrchestrator {
         }
         // Re-deploy missing services
         for (ServiceName missing : missingServices) {
-            DeployedService deployInfo = userServices.get(missing);
+            DeployInfo deployInfo = userServices.get(missing);
             Logging.info("Service " + missing + " was not found. Trying to redeploy...");
-            deployService(deployInfo.service, deployInfo.classPath, deployInfo.poolsize);
+            deployService(deployInfo);
         }
     }
 
@@ -340,21 +344,6 @@ class ReconstructionOrchestrator {
             Thread.sleep(ms);
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-    }
-
-
-
-    private class DeployedService {
-
-        final ServiceName service;
-        final String classPath;
-        final int poolsize;
-
-        DeployedService(ServiceName service, String classPath, int poolsize) {
-            this.service = service;
-            this.classPath = classPath;
-            this.poolsize = poolsize;
         }
     }
 
