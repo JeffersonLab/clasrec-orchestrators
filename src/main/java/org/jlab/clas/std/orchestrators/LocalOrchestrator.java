@@ -187,21 +187,21 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
     void start() {
         orchTimeStart = System.currentTimeMillis();
         setupNode(ioNode);
-        benchmark.initialize(orchestrator.getReport(ioNode.dpe.name));
+        benchmark.initialize(ioNode.getRuntimeData());
     }
 
 
     @Override
     void subscribe(ReconstructionNode node) {
         super.subscribe(node);
-        orchestrator.subscribeDone(node.writerName, new DataHandlerCB());
+        node.subscribeDone(n -> new DataHandlerCB());
     }
 
 
     @Override
     void end() {
         try {
-            benchmark.update(orchestrator.getReport(ioNode.dpe.name));
+            benchmark.update(ioNode.getRuntimeData());
             BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
             printer.printBenchmark(setup);
         } catch (OrchestratorError e) {

@@ -2,15 +2,18 @@ package org.jlab.clas.std.orchestrators;
 
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import org.jlab.clara.base.Composition;
 import org.jlab.clara.base.ContainerName;
-import org.jlab.clara.base.DpeName;
+import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
+import org.jlab.clara.base.ServiceRuntimeData;
 import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.engine.EngineData;
@@ -24,11 +27,12 @@ class ReconstructionNode {
 
     private final ReconstructionOrchestrator orchestrator;
 
-    final DpeInfo dpe;
-    final ContainerName containerName;
-    final ServiceName stageName;
-    final ServiceName readerName;
-    final ServiceName writerName;
+    private final DpeInfo dpe;
+
+    private final ContainerName containerName;
+    private final ServiceName stageName;
+    private final ServiceName readerName;
+    private final ServiceName writerName;
 
     volatile ReconstructionFile recFile;
 
@@ -63,6 +67,35 @@ class ReconstructionNode {
     }
 
 
+    void deployServices() {
+        orchestrator.deployInputOutputServices(dpe, 1);
+        orchestrator.deployReconstructionChain(dpe, dpe.cores);
+        orchestrator.checkInputOutputServices(dpe);
+        orchestrator.checkReconstructionServices(dpe);
+    }
+
+
+    boolean checkServices() {
+        if (!orchestrator.findInputOutputService(dpe)) {
+            return false;
+        }
+        if (!orchestrator.findReconstructionServices(dpe)) {
+            return false;
+        }
+        return true;
+    }
+
+
+    void subscribeErrors(Function<ReconstructionNode, EngineCallback> callbackFn) {
+        orchestrator.subscribeErrors(containerName, callbackFn.apply(this));
+    }
+
+
+    void subscribeDone(Function<ReconstructionNode, EngineCallback> callbackFn) {
+        orchestrator.subscribeDone(writerName, callbackFn.apply(this));
+    }
+
+
     void setPaths(String inputPath, String outputPath, String stagePath) {
         try {
             JSONObject data = new JSONObject();
@@ -87,7 +120,7 @@ class ReconstructionNode {
             data.put("action", "stage_input");
             data.put("file", currentInputFileName);
 
-            Logging.info("Staging file %s on %s", currentInputFileName, dpe.name);
+            Logging.info("Staging file %s on %s", currentInputFileName, name());
             EngineData result = orchestrator.syncSend(stageName, data, 5, TimeUnit.MINUTES);
 
             if (!result.getStatus().equals(EngineStatus.ERROR)) {
@@ -180,7 +213,7 @@ class ReconstructionNode {
 
         // open input file
         try {
-            Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
+            Logging.info("Opening file %s on %s", currentInputFileName, name());
             JSONObject inputConfig = new JSONObject();
             inputConfig.put("action", "open");
             inputConfig.put("file", currentInputFile);
@@ -263,37 +296,42 @@ class ReconstructionNode {
     }
 
 
-    void configureService(ServiceName service, EngineData data) {
-        try {
-            orchestrator.syncConfig(service, data, 2, TimeUnit.MINUTES);
-        } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not configure " + service, e);
+    void configureServices(EngineData data) {
+        for (ServiceName service : orchestrator.generateReconstructionChain(dpe)) {
+            try {
+                orchestrator.syncConfig(service, data, 2, TimeUnit.MINUTES);
+            } catch (ClaraException | TimeoutException e) {
+                throw new OrchestratorError("Could not configure " + service, e);
+            }
         }
     }
 
 
-    void sendEventsToDpe(DpeName dpeName, List<ServiceName> chain, int dpeCores) {
+    void sendEvents(int maxCores) {
         startTime.compareAndSet(0, System.currentTimeMillis());
 
+        int requestCores = numCores(maxCores);
+        int requestId = 1;
+
         Logging.info("Using %d cores on %s to reconstruct %d events of %s [%d/%d]",
-                      dpeCores, dpeName, totalEvents.get(), currentInputFileName,
+                      requestCores, name(), totalEvents.get(), currentInputFileName,
                       currentFileCounter.get(), totalFilesCounter.get());
 
-        int requestId = 1;
-        for (int i = 0; i < dpeCores; i++) {
-            requestEvent(dpeName, chain, requestId++, "next");
+        for (int i = 0; i < requestCores; i++) {
+            requestEvent(requestId++, "next");
         }
     }
 
 
-    void requestEvent(DpeName dpeName, List<ServiceName> chain, int requestId, String type) {
+    void requestEvent(int requestId, String type) {
         try {
             EngineData data = new EngineData();
             data.setData(EngineDataType.STRING.mimeType(), type);
             data.setCommunicationId(requestId);
+            List<ServiceName> chain = orchestrator.generateReconstructionChain(dpe);
             orchestrator.send(generateComposition(chain), data);
         } catch (ClaraException e) {
-            throw new OrchestratorError("Could not request reconstruction on = " + dpeName, e);
+            throw new OrchestratorError("Could not request reconstruction on = " + name(), e);
         }
     }
 
@@ -307,6 +345,26 @@ class ReconstructionNode {
         composition += "+" + readerName.canonicalName();
         composition += ";";
         return new Composition(composition);
+    }
+
+
+    private int numCores(int maxCores) {
+        return dpe.cores <= maxCores ? dpe.cores : maxCores;
+    }
+
+
+    Set<ServiceRuntimeData> getRuntimeData() {
+        return orchestrator.getReport(dpe.name);
+    }
+
+
+    boolean isFrontEnd() {
+        return dpe.name.equals(orchestrator.getFrontEnd());
+    }
+
+
+    String name() {
+        return dpe.name.canonicalName();
     }
 
 
@@ -335,5 +393,11 @@ class ReconstructionNode {
             return false;
         }
         return true;
+    }
+
+
+    @Override
+    public String toString() {
+        return dpe.name.toString();
     }
 }

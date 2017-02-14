@@ -2,7 +2,6 @@ package org.jlab.clas.std.orchestrators;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
@@ -17,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
@@ -277,7 +275,7 @@ abstract class AbstractOrchestrator {
                 setupNode(node);
             } catch (OrchestratorError e) {
                 Logging.error("Could not use %s for reconstruction:%n%s",
-                              node.dpe.name, e.getMessage());
+                              node.name(), e.getMessage());
             }
         });
     }
@@ -288,27 +286,24 @@ abstract class AbstractOrchestrator {
      */
     void setupNode(ReconstructionNode node) {
         try {
-            Logging.info("Start processing on %s...", node.dpe.name);
+            Logging.info("Start processing on %s...", node.name());
             if (!checkChain(node)) {
                 deploy(node);
             }
             subscribe(node);
 
-            Logging.info("Configuring services on %s...", node.dpe.name);
+            Logging.info("Configuring services on %s...", node.name());
             if (options.stageFiles && !options.bulkStage) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
             // TODO send proper configuration data
             EngineData configData = new EngineData();
             configData.setData(EngineDataType.STRING.mimeType(), "config");
-            List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
-            for (ServiceName recService : recChain) {
-                node.configureService(recService, configData);
-            }
-            Logging.info("All services configured on %s", node.dpe.name);
+            node.configureServices(configData);
+            Logging.info("All services configured on %s", node.name());
 
-            if (options.bulkStage && node.dpe.name.equals(setup.frontEnd)) {
-                Logging.info("Staging all files on %s...", setup.frontEnd);
+            if (options.bulkStage && node.isFrontEnd()) {
+                Logging.info("Staging all files on %s...", node.name());
                 new Thread(new FileStagingWorker(), "file-staging-thread").start();
                 new Thread(new FileSavingWorker(), "file-saving-thread").start();
             }
@@ -323,30 +318,24 @@ abstract class AbstractOrchestrator {
 
 
     boolean checkChain(ReconstructionNode node) {
-        Logging.info("Searching services in %s...", node.dpe.name);
-        if (!orchestrator.findInputOutputService(node.dpe)) {
-            return false;
+        Logging.info("Searching services in %s...", node.name());
+        if (node.checkServices()) {
+            Logging.info("All services already deployed on %s", node.name());
+            return true;
         }
-        if (!orchestrator.findReconstructionServices(node.dpe)) {
-            return false;
-        }
-        Logging.info("All services already deployed on %s", node.dpe.name);
-        return true;
+        return false;
     }
 
 
     void deploy(ReconstructionNode node) {
-        Logging.info("Deploying services in %s...", node.dpe.name);
-        orchestrator.deployInputOutputServices(node.dpe, 1);
-        orchestrator.deployReconstructionChain(node.dpe, node.dpe.cores);
-        orchestrator.checkInputOutputServices(node.dpe);
-        orchestrator.checkReconstructionServices(node.dpe);
-        Logging.info("All services deployed on %s", node.dpe.name);
+        Logging.info("Deploying services in %s...", node.name());
+        node.deployServices();
+        Logging.info("All services deployed on %s", node.name());
     }
 
 
     void subscribe(ReconstructionNode node) {
-        orchestrator.subscribeErrors(node.containerName, new ErrorHandlerCB(node));
+        node.subscribeErrors(ErrorHandlerCB::new);
     }
 
 
@@ -434,7 +423,7 @@ abstract class AbstractOrchestrator {
                     localNode.setFiles(paths.stageInputFilePath(recFile),
                                        paths.stageOutputFilePath(recFile));
                     localNode.saveOutputFile();
-                    Logging.info("Saved file %s on %s", recFile.outputName, localNode.dpe.name);
+                    Logging.info("Saved file %s on %s", recFile.outputName, localNode.name());
                 } catch (Exception e) {
                     Logging.error("Could not save file %s:%n%s",
                             recFile.outputName, e.getMessage());
@@ -491,7 +480,7 @@ abstract class AbstractOrchestrator {
             startFile(node);
         } catch (OrchestratorError e) {
             Logging.error("Could not use %s for reconstruction:%n%s",
-                    node.dpe.name, e.getMessage());
+                    node.name(), e.getMessage());
         }
     }
 
@@ -519,9 +508,7 @@ abstract class AbstractOrchestrator {
         int totalFiles = paths.numFiles();
         node.setFileCounter(fileCounter, totalFiles);
 
-        List<ServiceName> recChain = orchestrator.generateReconstructionChain(node.dpe);
-        int threads = node.dpe.cores <= options.maxThreads ? node.dpe.cores : options.maxThreads;
-        node.sendEventsToDpe(node.dpe.name, recChain, threads);
+        node.sendEvents(options.maxThreads);
     }
 
 
@@ -531,7 +518,7 @@ abstract class AbstractOrchestrator {
         double timePerEvent = recTime / (double) node.totalEvents.get();
         stats.update(node, node.totalEvents.get(), recTime);
         Logging.info("Finished file %s on %s. Average event time = %.2f ms",
-                     node.currentInputFileName, node.dpe.name, timePerEvent);
+                     node.currentInputFileName, node.name(), timePerEvent);
     }
 
 
@@ -541,10 +528,10 @@ abstract class AbstractOrchestrator {
             node.closeFiles();
             if (options.stageFiles && !options.bulkStage) {
                 node.saveOutputFile();
-                Logging.info("Saved file %s on %s", currentFile, node.dpe.name);
+                Logging.info("Saved file %s on %s", currentFile, node.name());
             }
         } catch (OrchestratorError e) {
-            Logging.error("Could not close files on %s:%n%s", node.dpe.name, e.getMessage());
+            Logging.error("Could not close files on %s:%n%s", node.name(), e.getMessage());
         } finally {
             if (options.bulkStage) {
                 finishedQueue.add(node.recFile);
@@ -573,7 +560,7 @@ abstract class AbstractOrchestrator {
                     n.removeStageDir();
                 } catch (OrchestratorError e) {
                     Logging.error("Could not remove stage directory from %s: %s",
-                            n.dpe.name, e.getMessage());
+                            n.name(), e.getMessage());
                 }
             });
         }
@@ -591,7 +578,6 @@ abstract class AbstractOrchestrator {
         @Override
         public void callback(EngineData data) {
             ServiceName source = new ServiceName(data.getEngineName());
-            DpeName host = source.dpe();
             int requestId = data.getCommunicationId();
             int severity = data.getStatusSeverity();
             String description = data.getDescription();
@@ -605,8 +591,7 @@ abstract class AbstractOrchestrator {
             } else {
                 try {
                     Logging.error("Error in %s (ID: %d):%n%s", source, requestId, description);
-                    List<ServiceName> chain = orchestrator.generateReconstructionChain(node.dpe);
-                    node.requestEvent(host, chain, requestId, "next-rec");
+                    node.requestEvent(requestId, "next-rec");
                 } catch (OrchestratorError e) {
                     Logging.error(e.getMessage());
                 }
