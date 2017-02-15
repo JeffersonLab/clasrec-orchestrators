@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
@@ -271,7 +272,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
     void start() {
         printStartup();
         Logging.info("Waiting for reconstruction nodes...");
-        orchestrator.subscribeDpes(new DpeReportCB(), setup.session);
+        DpeReportCB dpeCallback = new DpeReportCB(orchestrator, options, this::executeSetup);
+        orchestrator.subscribeDpes(dpeCallback, setup.session);
     }
 
 
@@ -302,9 +304,21 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
 
 
-    private class DpeReportCB implements DpeCallBack {
+    static class DpeReportCB implements DpeCallBack {
 
+        private final ReconstructionOrchestrator orchestrator;
+        private final ReconstructionOptions options;
+
+        private final Consumer<ReconstructionNode> nodeConsumer;
         private final Set<ReconstructionNode> availableNodes = new HashSet<>();
+
+        DpeReportCB(ReconstructionOrchestrator orchestrator,
+                    ReconstructionOptions options,
+                    Consumer<ReconstructionNode> nodeConsumer) {
+            this.orchestrator = orchestrator;
+            this.options = options;
+            this.nodeConsumer = nodeConsumer;
+        }
 
         @Override
         public void callback(DpeInfo dpe) {
@@ -314,7 +328,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     return;
                 }
                 if (!availableNodes.contains(node)) {
-                    executeSetup(node);
+                    nodeConsumer.accept(node);
                     availableNodes.add(node);
                 }
             }
@@ -322,7 +336,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         private boolean ignoreDpe(DpeInfo dpe) {
             DpeName name = dpe.name;
-            return name.equals(setup.frontEnd) && !options.useFrontEnd;
+            DpeName fe = orchestrator.getFrontEnd();
+            return name.equals(fe) && !options.useFrontEnd;
         }
     }
 
