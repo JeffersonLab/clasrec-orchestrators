@@ -4,7 +4,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.RejectedExecutionException;
 
 import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
@@ -21,8 +20,6 @@ import com.martiansoftware.jsap.Switch;
 import com.martiansoftware.jsap.UnflaggedOption;
 
 public final class CloudOrchestrator extends AbstractOrchestrator {
-
-    private final Set<ReconstructionNode> nodes = new HashSet<>();
 
     public static void main(String[] args) {
         try {
@@ -307,30 +304,25 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
     private class DpeReportCB implements DpeCallBack {
 
+        private final Set<ReconstructionNode> availableNodes = new HashSet<>();
+
         @Override
         public void callback(DpeInfo dpe) {
             final ReconstructionNode node = new ReconstructionNode(orchestrator, dpe);
-            synchronized (nodes) {
-                if (nodes.size() == options.maxNodes || filterNode(node)) {
+            synchronized (availableNodes) {
+                if (availableNodes.size() == options.maxNodes || ignoreDpe(dpe)) {
                     return;
                 }
-                if (!nodes.contains(node)) {
-                    try {
-                        executeSetup(node);
-                        nodes.add(node);
-                    } catch (RejectedExecutionException e) {
-                        // ignore
-                    }
+                if (!availableNodes.contains(node)) {
+                    executeSetup(node);
+                    availableNodes.add(node);
                 }
             }
         }
 
-        private boolean filterNode(ReconstructionNode node) {
-            DpeName name = node.dpe.name;
-            if (name.equals(setup.frontEnd) && !options.useFrontEnd) {
-                return true;
-            }
-            return false;
+        private boolean ignoreDpe(DpeInfo dpe) {
+            DpeName name = dpe.name;
+            return name.equals(setup.frontEnd) && !options.useFrontEnd;
         }
     }
 
