@@ -8,7 +8,6 @@ import java.util.Objects;
 
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
-import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
@@ -180,10 +179,10 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         DpeInfo dpe = new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME);
         ioNode = new ReconstructionNode(orchestrator, dpe);
 
-        List<ServiceName> benchmarkServices = new ArrayList<>();
-        benchmarkServices.add(orchestrator.getReaderServiceName(dpe));
-        benchmarkServices.addAll(orchestrator.generateReconstructionChain(dpe));
-        benchmarkServices.add(orchestrator.getWriterServiceName(dpe));
+        List<ServiceInfo> benchmarkServices = new ArrayList<>();
+        benchmarkServices.add(setup.ioServices.get("reader"));
+        benchmarkServices.addAll(setup.recChain);
+        benchmarkServices.add(setup.ioServices.get("writer"));
         benchmark = new Benchmark(benchmarkServices);
     }
 
@@ -226,11 +225,11 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
         System.out.println();
         System.out.println("Benchmark results:");
-        ServiceName reader = orchestrator.getReaderServiceName(ioNode.dpe);
-        ServiceName writer = orchestrator.getWriterServiceName(ioNode.dpe);
+        ServiceInfo reader = setup.ioServices.get("reader");
+        ServiceInfo writer = setup.ioServices.get("writer");
         printer.printService(reader, "READER");
-        for (ServiceName service : orchestrator.generateReconstructionChain(ioNode.dpe)) {
-            printer.printService(service, service.name());
+        for (ServiceInfo service : setup.recChain) {
+            printer.printService(service, service.name);
         }
         printer.printService(writer, "WRITER");
         printer.printTotal();
@@ -249,7 +248,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             this.totalRequests = totalRequests;
         }
 
-        void printService(ServiceName service, String label) {
+        void printService(ServiceInfo service, String label) {
             long time = benchmark.time(service);
             totalTime += time;
             print(label, time, totalRequests);
