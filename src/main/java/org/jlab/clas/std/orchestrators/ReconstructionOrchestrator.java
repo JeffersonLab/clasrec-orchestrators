@@ -78,35 +78,30 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void deploy(ServiceInfo service, DpeInfo dpe, int poolsize) {
+    private void deployService(ServiceName service, String classPath, int poolsize) {
         try {
-            ContainerName containerName = new ContainerName(dpe.name, service.cont);
+            ContainerName containerName = service.container();
             if (!userContainers.contains(containerName)) {
-                deployContainer(dpe, service.cont);
+                deployContainer(containerName);
                 userContainers.add(containerName);
             }
-            ServiceName serviceName = new ServiceName(containerName, service.name);
-            base.deploy(serviceName, service.classpath).withPoolsize(poolsize).run();
-            userServices.put(serviceName, new DeployedService(service, dpe, poolsize));
+            base.deploy(service, classPath).withPoolsize(poolsize).run();
+            userServices.put(service, new DeployedService(service, classPath, poolsize));
         } catch (ClaraException e) {
-            String errorMsg = String.format("failed request to deploy host = '%s' "
-                                            + "container = '%s' classpath = '%s'",
-                                            dpe.name, service.cont, service.classpath);
+            String errorMsg = String.format("failed request to deploy service = %s  class = %s",
+                                            service, classPath);
             throw new OrchestratorError(errorMsg, e);
         }
     }
 
 
-    private void deployContainer(DpeInfo dpe, String containerName)
-            throws ClaraException {
-
-        ContainerName container = new ContainerName(dpe.name, containerName);
+    private void deployContainer(ContainerName container) throws ClaraException {
         base.deploy(container).run();
 
         final int maxAttempts = 10;
         int counter = 0;
         while (true) {
-            Set<ContainerName> regContainers = getRegisteredContainers(dpe);
+            Set<ContainerName> regContainers = getRegisteredContainers(container.dpe());
             for (ContainerName c : regContainers) {
                 if (container.equals(c)) {
                     return;
@@ -125,15 +120,15 @@ class ReconstructionOrchestrator {
 
 
     void deployInputOutputServices(DpeInfo dpe, int poolsize) {
-        deploy(stage, dpe, poolsize);
-        deploy(reader, dpe, poolsize);
-        deploy(writer, dpe, poolsize);
+        deployService(getServiceName(dpe, stage), stage.classpath, poolsize);
+        deployService(getServiceName(dpe, reader), reader.classpath, poolsize);
+        deployService(getServiceName(dpe, writer), writer.classpath, poolsize);
     }
 
 
     void deployReconstructionChain(DpeInfo dpe, int poolsize) {
         for (ServiceInfo service : reconstructionChain) {
-            deploy(service, dpe, poolsize);
+            deployService(getServiceName(dpe, service), service.classpath, poolsize);
         }
     }
 
@@ -160,10 +155,10 @@ class ReconstructionOrchestrator {
     }
 
 
-    private Set<ContainerName> getRegisteredContainers(DpeInfo dpe) {
+    private Set<ContainerName> getRegisteredContainers(DpeName dpe) {
         try {
             return base.query()
-                       .canonicalNames(ClaraFilters.containersByDpe(dpe.name))
+                       .canonicalNames(ClaraFilters.containersByDpe(dpe))
                        .syncRun(3, TimeUnit.SECONDS);
         } catch (TimeoutException | ClaraException e) {
             throw new OrchestratorError(e);
@@ -171,10 +166,10 @@ class ReconstructionOrchestrator {
     }
 
 
-    private Set<ServiceName> getRegisteredServices(DpeInfo dpe) {
+    private Set<ServiceName> getRegisteredServices(DpeName dpe) {
         try {
             return base.query()
-                       .canonicalNames(ClaraFilters.servicesByDpe(dpe.name))
+                       .canonicalNames(ClaraFilters.servicesByDpe(dpe))
                        .syncRun(3, TimeUnit.SECONDS);
         } catch (TimeoutException | ClaraException e) {
             throw new OrchestratorError(e);
@@ -194,7 +189,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void checkServices(DpeInfo dpe, Set<ServiceName> services) {
+    private void checkServices(DpeName dpe, Set<ServiceName> services) {
         final int sleepTime = 2000;
         final int totalConnectTime = 1000 * 10 * services.size();
         final int maxAttempts = totalConnectTime / sleepTime;
@@ -236,7 +231,7 @@ class ReconstructionOrchestrator {
         for (ServiceName missing : missingServices) {
             DeployedService deployInfo = userServices.get(missing);
             Logging.info("Service " + missing + " was not found. Trying to redeploy...");
-            deploy(deployInfo.service, deployInfo.dpe, deployInfo.poolsize);
+            deployService(deployInfo.service, deployInfo.classPath, deployInfo.poolsize);
         }
     }
 
@@ -259,27 +254,28 @@ class ReconstructionOrchestrator {
     }
 
 
+    private boolean findServices(DpeName dpe, Set<ServiceName> services) {
+        return findMissingServices(services, getRegisteredServices(dpe)).isEmpty();
+    }
+
+
     boolean findInputOutputService(DpeInfo dpe) {
-        Set<ServiceName> services = getServiceNames(dpe, Arrays.asList(stage, reader, writer));
-        Set<ServiceName> regServices = getRegisteredServices(dpe);
-        return findMissingServices(services, regServices).isEmpty();
+        return findServices(dpe.name, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
     }
 
 
     boolean findReconstructionServices(DpeInfo dpe) {
-        Set<ServiceName> recChain = getServiceNames(dpe, reconstructionChain);
-        Set<ServiceName> regServices = getRegisteredServices(dpe);
-        return findMissingServices(new HashSet<>(recChain), regServices).isEmpty();
+        return findServices(dpe.name, getServiceNames(dpe, reconstructionChain));
     }
 
 
     void checkInputOutputServices(DpeInfo dpe) {
-        checkServices(dpe, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
+        checkServices(dpe.name, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
     }
 
 
     void checkReconstructionServices(DpeInfo dpe) {
-        checkServices(dpe, getServiceNames(dpe, reconstructionChain));
+        checkServices(dpe.name, getServiceNames(dpe, reconstructionChain));
     }
 
 
@@ -351,13 +347,13 @@ class ReconstructionOrchestrator {
 
     private class DeployedService {
 
-        final ServiceInfo service;
-        final DpeInfo dpe;
+        final ServiceName service;
+        final String classPath;
         final int poolsize;
 
-        DeployedService(ServiceInfo service, DpeInfo dpe, int poolsize) {
+        DeployedService(ServiceName service, String classPath, int poolsize) {
             this.service = service;
-            this.dpe = dpe;
+            this.classPath = classPath;
             this.poolsize = poolsize;
         }
     }
