@@ -114,7 +114,7 @@ public class ReconstructionConfigParser {
 
 
     public static ServiceInfo ioServiceFactory(String className, String engineName) {
-        return new ServiceInfo(className, getDefaultContainer(), engineName);
+        return new ServiceInfo(className, getDefaultContainer(), engineName, ClaraLang.JAVA);
     }
 
 
@@ -246,7 +246,7 @@ public class ReconstructionConfigParser {
             if (name.isEmpty() || classPath.isEmpty()) {
                 throw error("missing name or class of service");
             }
-            ServiceInfo service = new ServiceInfo(classPath, container, name);
+            ServiceInfo service = new ServiceInfo(classPath, container, name, ClaraLang.JAVA);
             if (services.contains(service)) {
                 throw error(String.format("duplicated service  name = '%s' container = '%s'",
                                           name, container));

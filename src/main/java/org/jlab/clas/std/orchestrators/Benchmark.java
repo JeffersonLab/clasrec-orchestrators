@@ -56,7 +56,7 @@ class Benchmark {
     }
 
     private static ServiceInfo key(ServiceName service) {
-        return new ServiceInfo("", service.container().name(), service.name());
+        return new ServiceInfo("", service.container().name(), service.name(), service.language());
     }
 
     private static class Runtime {

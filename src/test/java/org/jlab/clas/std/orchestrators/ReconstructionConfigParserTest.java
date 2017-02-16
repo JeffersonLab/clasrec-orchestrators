@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.jlab.clara.base.ClaraLang;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.junit.Rule;
 import org.junit.Test;
@@ -139,6 +140,6 @@ public class ReconstructionConfigParserTest {
 
 
     private static ServiceInfo service(String classPath, String name) {
-        return new ServiceInfo(classPath, CONT, name);
+        return new ServiceInfo(classPath, CONT, name, ClaraLang.JAVA);
     }
 }
