@@ -101,10 +101,30 @@ public class ReconstructionConfigParserTest {
         ServiceInfo reader = new ServiceInfo("org.jlab.clas12.convertors.CustomReader",
                                              CONT, "CustomReader", ClaraLang.JAVA);
         ServiceInfo writer = new ServiceInfo("org.jlab.clas12.convertors.CustomWriter",
-                                             CONT, "CustomWriter", ClaraLang.JAVA);
+                                             CONT, "CustomWriter", ClaraLang.CPP);
 
         assertThat(services, hasEntry(equalTo("reader"), equalTo(reader)));
         assertThat(services, hasEntry(equalTo("writer"), equalTo(writer)));
+    }
+
+
+    @Test
+    public void testMultiLangServices() throws Exception {
+        URL path = getClass().getResource("/services-custom.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+
+        List<ServiceInfo> expected = Arrays.asList(
+                new ServiceInfo("org.jlab.clas12.convertors.ECReconstruction",
+                                CONT, "ECReconstruction", ClaraLang.JAVA),
+                new ServiceInfo("org.jlab.clas12.convertors.SeedFinder",
+                                CONT, "SeedFinder", ClaraLang.JAVA),
+                new ServiceInfo("org.jlab.clas12.convertors.HeaderFilter",
+                                CONT, "HeaderFilter", ClaraLang.CPP),
+                new ServiceInfo("org.jlab.clas12.convertors.FTOFReconstruction",
+                                CONT, "FTOFReconstruction", ClaraLang.JAVA)
+        );
+
+        assertThat(parser.parseReconstructionChain(), is(expected));
     }
 
 

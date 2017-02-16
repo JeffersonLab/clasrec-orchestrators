@@ -262,6 +262,11 @@ public class ReconstructionConfigParser {
     }
 
 
+    private String parseDefaultLanguage() {
+        return config.optString("lang", ClaraLang.JAVA.toString());
+    }
+
+
     private String parseIOFormat(JSONObject data, String key) {
         try {
             return data.getString(key);
@@ -276,10 +281,11 @@ public class ReconstructionConfigParser {
         String name = data.optString("name");
         String classPath = data.optString("class");
         String container = data.optString("container", parseDefaultContainer());
+        ClaraLang lang = ClaraLang.fromString(data.optString("lang", parseDefaultLanguage()));
         if (name.isEmpty() || classPath.isEmpty()) {
             throw error("missing name or class of service");
         }
-        return new ServiceInfo(classPath, container, name, ClaraLang.JAVA);
+        return new ServiceInfo(classPath, container, name, lang);
     }
 
 

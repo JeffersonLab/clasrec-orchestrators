@@ -6,10 +6,14 @@ io-services:
   writer:
     class: org.jlab.clas12.convertors.CustomWriter
     name: CustomWriter
+    lang: cpp
 services:
   - class: org.jlab.clas12.services.ECReconstruction
     name: ECReconstruction
   - class: org.jlab.clas12.services.SeedFinder
     name: SeedFinder
+  - class: org.jlab.clas12.services.HeaderFilter
+    name: HeaderFilter
+    lang: cpp
   - class: org.jlab.clas12.services.FTOFReconstruction
     name: FTOFReconstruction
