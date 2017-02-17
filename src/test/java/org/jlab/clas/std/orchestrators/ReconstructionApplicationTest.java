@@ -58,7 +58,7 @@ public class ReconstructionApplicationTest {
     public void getReconstructionServicesForMultiLangApplication() throws Exception {
         ReconstructionApplication app = AppData.builder()
                 .withServices(AppData.J1, AppData.C1, AppData.C2, AppData.P1)
-                .withDpe(AppData.DPE1, AppData.DPE2, AppData.DPE3)
+                .withDpes(AppData.DPE1, AppData.DPE2, AppData.DPE3)
                 .build();
 
         ServiceName[] expected = toServices("10.1.1.10_java:master:J1",
@@ -96,7 +96,7 @@ public class ReconstructionApplicationTest {
     public void getAllContainersForMultiLangApplication() throws Exception {
         ReconstructionApplication app = AppData.builder()
                 .withServices(AppData.J1, AppData.K1, AppData.C1, AppData.P1)
-                .withDpe(AppData.DPE1, AppData.DPE2, AppData.DPE3)
+                .withDpes(AppData.DPE1, AppData.DPE2, AppData.DPE3)
                 .build();
 
         ContainerName[] expected = toContainers("10.1.1.10_java:master",

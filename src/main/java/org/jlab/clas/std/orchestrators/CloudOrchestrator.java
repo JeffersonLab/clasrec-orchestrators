@@ -1,9 +1,9 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jlab.clara.base.ClaraUtil;
@@ -312,7 +312,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private final ApplicationInfo application;
 
         private final Consumer<ReconstructionNode> nodeConsumer;
-        private final Set<ReconstructionNode> availableNodes = new HashSet<>();
+        private final Map<String, ReconstructionNodeBuilder> waitingNodes = new HashMap<>();
+        private final Map<String, ReconstructionNodeBuilder> availableNodes = new HashMap<>();
 
         DpeReportCB(ReconstructionOrchestrator orchestrator,
                     ReconstructionOptions options,
@@ -326,17 +327,28 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         @Override
         public void callback(DpeInfo dpe) {
-            final ReconstructionApplication app = new ReconstructionApplication(application, dpe);
-            final ReconstructionNode node = new ReconstructionNode(orchestrator, app);
             synchronized (availableNodes) {
                 if (availableNodes.size() == options.maxNodes || ignoreDpe(dpe)) {
                     return;
                 }
-                if (!availableNodes.contains(node)) {
-                    nodeConsumer.accept(node);
-                    availableNodes.add(node);
+                String nodeName = getHost(dpe);
+                ReconstructionNodeBuilder nodeBuilder = waitingNodes.get(nodeName);
+                if (nodeBuilder == null) {
+                    nodeBuilder = new ReconstructionNodeBuilder(application);
+                    waitingNodes.put(nodeName, nodeBuilder);
+                } else if (nodeBuilder.isReady()) {
+                    return;
+                }
+                nodeBuilder.addDpe(dpe);
+                if (nodeBuilder.isReady()) {
+                    availableNodes.put(nodeName, nodeBuilder);
+                    nodeConsumer.accept(nodeBuilder.build(orchestrator));
                 }
             }
+        }
+
+        private String getHost(DpeInfo dpe) {
+            return dpe.name.address().host();
         }
 
         private boolean ignoreDpe(DpeInfo dpe) {

@@ -54,7 +54,7 @@ final class AppData {
             return this;
         }
 
-        AppBuilder withDpe(DpeInfo... dpes) {
+        AppBuilder withDpes(DpeInfo... dpes) {
             for (DpeInfo dpe : dpes) {
                 this.dpes.put(dpe.name.language(), dpe);
             }

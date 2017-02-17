@@ -1,6 +1,5 @@
 package org.jlab.clas.std.orchestrators;
 
-import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clas.std.orchestrators.AbstractOrchestrator.ReconstructionOptions;
 import org.jlab.clas.std.orchestrators.CloudOrchestrator.DpeReportCB;
@@ -45,8 +44,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void useSingleNode() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangUseSingleNode() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(false, 10);
 
         cb.callback("10.1.1.1_java");
@@ -58,8 +57,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void useMultipleNodes() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangUseMultipleNodes() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(false, 10);
 
         cb.callback("10.1.1.1_java");
@@ -77,8 +76,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void singleNodeUsingFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangSingleNodeUsingFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(true, 10);
 
         cb.callback("10.1.1.254_java");
@@ -88,8 +87,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void multipleNodesUsingFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangMultipleNodesUsingFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(true, 10);
 
         cb.callback("10.1.1.254_java");
@@ -103,8 +102,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void singleNodeIgnoringFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangSingleNodeIgnoringFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(false, 10);
 
         cb.callback("10.1.1.254_java");
@@ -114,8 +113,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void multipleNodesIgnoringFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangMultipleNodesIgnoringFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(false, 10);
 
         cb.callback("10.1.1.1_java");
@@ -129,8 +128,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void limitNodesUsingFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangLimitNodesUsingFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(true, 3);
 
         cb.callback("10.1.1.254_java");
@@ -152,8 +151,8 @@ public class CloudOrchestratorTest {
 
 
     @Test
-    public void limitNodesIgnoringFrontEnd() throws Exception {
-        NodeData data = buildNodeData();
+    public void singleLangLimitNodesIgnoringFrontEnd() throws Exception {
+        NodeData data = singleLangData();
         DpeReportCBTest cb = data.callback(false, 3);
 
         cb.callback("10.1.1.254_java");
@@ -175,8 +174,203 @@ public class CloudOrchestratorTest {
     }
 
 
-    private NodeData buildNodeData() {
-        return new NodeData();
+    @Test
+    public void multiLangUseSingleNode() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.1_java");
+
+        ReconstructionNode expected = data.node("10.1.1.1");
+
+        assertThat(cb.nodes(), contains(expected));
+    }
+
+
+    @Test
+    public void multiLangUseAllLanguages() throws Exception {
+        NodeData data = new NodeData(AppData.J1, AppData.C1, AppData.P1);
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.1_python");
+
+        DpeName[] expectedDpes = new DpeName[] {
+                new DpeName("10.1.1.1_java"),
+                new DpeName("10.1.1.1_cpp"),
+                new DpeName("10.1.1.1_python")
+        };
+
+        assertThat(cb.nodes().get(0).dpes(), contains(expectedDpes));
+    }
+
+
+    @Test
+    public void multiLangUseMultipleNodes() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.3_cpp");
+        cb.callback("10.1.1.2_java");
+
+        cb.callback("10.1.1.3_java");
+        cb.callback("10.1.1.2_cpp");
+        cb.callback("10.1.1.1_cpp");
+
+        ReconstructionNode[] expected = data.nodes("10.1.1.1", "10.1.1.2", "10.1.1.3");
+
+        assertThat(cb.nodes(), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void multiLangIgnoreUncompletedNodes() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.3_cpp");
+        cb.callback("10.1.1.2_java");
+
+        cb.callback("10.1.1.3_java");
+        cb.callback("10.1.1.4_cpp");
+        cb.callback("10.1.1.1_cpp");
+
+        ReconstructionNode[] expected = data.nodes("10.1.1.1", "10.1.1.3");
+
+        assertThat(cb.nodes(), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void multiLangSingleNodeUsingFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(true, 10);
+
+        cb.callback("10.1.1.254_java");
+        cb.callback("10.1.1.254_cpp");
+
+        assertThat(cb.nodes(), contains(data.nodes("10.1.1.254")));
+    }
+
+
+    @Test
+    public void multiLangMultipleNodesUsingFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(true, 10);
+
+        cb.callback("10.1.1.254_java");
+        cb.callback("10.1.1.254_cpp");
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.2_java");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.2_cpp");
+
+        ReconstructionNode[] expected = data.nodes("10.1.1.254", "10.1.1.1", "10.1.1.2");
+
+        assertThat(cb.nodes(), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void multiLangSingleNodeIgnoringFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.254");
+
+        assertThat(cb.nodes(), is(empty()));
+    }
+
+
+    @Test
+    public void multiLangMultipleNodesIgnoringFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 10);
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.2_java");
+        cb.callback("10.1.1.254_java");
+        cb.callback("10.1.1.254_cpp");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.2_cpp");
+
+        ReconstructionNode[] expected = data.nodes("10.1.1.1", "10.1.1.2");
+
+        assertThat(cb.nodes(), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void multiLangLimitNodesUsingFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(true, 3);
+
+        cb.callback("10.1.1.254_java");
+        cb.callback("10.1.1.254_cpp");
+        cb.callback("10.1.1.3_java");
+        cb.callback("10.1.1.3_cpp");
+
+        cb.waitCallbacks();
+
+        cb.callback("10.1.1.2_java");
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.4_java");
+
+        cb.callback("10.1.1.2_cpp");
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.4_cpp");
+
+        Set<ReconstructionNode> actual = new HashSet<>(cb.nodes());
+
+        assertThat(actual, iterableWithSize(3));
+        assertThat(actual, hasItem(data.node("10.1.1.254")));
+    }
+
+
+    @Test
+    public void multiLangLimitNodesIgnoringFrontEnd() throws Exception {
+        NodeData data = multiLangData();
+        DpeReportCBTest cb = data.callback(false, 3);
+
+        cb.callback("10.1.1.2_java");
+        cb.callback("10.1.1.3_java");
+        cb.callback("10.1.1.254_java");
+
+        cb.callback("10.1.1.2_cpp");
+        cb.callback("10.1.1.3_cpp");
+        cb.callback("10.1.1.254_cpp");
+
+        cb.callback("10.1.1.1_java");
+        cb.callback("10.1.1.5_java");
+        cb.callback("10.1.1.254_java");
+
+        cb.callback("10.1.1.1_cpp");
+        cb.callback("10.1.1.5_cpp");
+        cb.callback("10.1.1.254_cpp");
+
+        cb.callback("10.1.1.4_java");
+        cb.callback("10.1.1.4_cpp");
+
+        Set<ReconstructionNode> actual = new HashSet<>(cb.nodes());
+
+        assertThat(actual, iterableWithSize(3));
+        assertThat(actual, not(hasItem(data.node("10.1.1.254"))));
+    }
+
+
+    private NodeData singleLangData() {
+        return new NodeData(AppData.J1);
+    }
+
+
+    private NodeData multiLangData() {
+        return new NodeData(AppData.J1, AppData.C1);
     }
 
 
@@ -184,8 +378,8 @@ public class CloudOrchestratorTest {
 
         private final ApplicationInfo app;
 
-        NodeData() {
-            this.app = AppData.defaultAppInfo();
+        NodeData(ServiceInfo... services) {
+            this.app = AppData.newAppInfo(services);
         }
 
         DpeReportCBTest callback(boolean useFrontEnd, int maxNodes) {
@@ -193,7 +387,7 @@ public class CloudOrchestratorTest {
         }
 
         ReconstructionNode node(String host) {
-            ReconstructionApplication app = AppData.builder().withDpe(dpe(host)).build();
+            ReconstructionApplication app = AppData.builder().withDpes(dpes(host)).build();
             return new ReconstructionNode(orchestrator, app);
         }
 
@@ -201,9 +395,11 @@ public class CloudOrchestratorTest {
             return Stream.of(hosts).map(this::node).toArray(ReconstructionNode[]::new);
         }
 
-        private DpeInfo dpe(String host) {
-            DpeName name = new DpeName(host, ClaraLang.JAVA);
-            return AppData.dpe(name.canonicalName());
+        private DpeInfo[] dpes(String host) {
+            return app.getLanguages().stream()
+                      .map(lang -> new DpeName(host, lang))
+                      .map(name -> new DpeInfo(name, AppData.CORES, ""))
+                      .toArray(DpeInfo[]::new);
         }
     }
 

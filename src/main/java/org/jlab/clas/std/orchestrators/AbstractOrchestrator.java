@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
@@ -268,9 +269,13 @@ abstract class AbstractOrchestrator {
 
     ReconstructionNode localNode() {
         int cores = Runtime.getRuntime().availableProcessors();
-        DpeInfo dpe = new DpeInfo(orchestrator.getFrontEnd(), cores, DpeInfo.DEFAULT_CLARA_HOME);
-        ReconstructionApplication app = new ReconstructionApplication(setup.application, dpe);
-        return new ReconstructionNode(orchestrator, app);
+        String host = setup.frontEnd.address().host();
+        ReconstructionNodeBuilder builder = new ReconstructionNodeBuilder(setup.application);
+        setup.application.getLanguages().stream()
+             .map(lang -> new DpeName(host, lang))
+             .map(name -> new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME))
+             .forEach(dpe -> builder.addDpe(dpe));
+        return builder.build(orchestrator);
     }
 
 
