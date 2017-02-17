@@ -31,11 +31,21 @@ final class AppData {
     private AppData() { }
 
 
+    static ApplicationInfo defaultAppInfo() {
+        return newAppInfo(J1, J2, J3);
+    }
+
+
+    static ApplicationInfo newAppInfo(ServiceInfo... services) {
+        return new ApplicationInfo(ioServices(), recServices(services));
+    }
+
+
     static Map<String, ServiceInfo> ioServices() {
         Map<String, ServiceInfo> map = new HashMap<>();
-        map.put("stage", S1);
-        map.put("reader", R1);
-        map.put("writer", W1);
+        map.put(ApplicationInfo.STAGE, S1);
+        map.put(ApplicationInfo.READER, R1);
+        map.put(ApplicationInfo.WRITER, W1);
         return map;
     }
 

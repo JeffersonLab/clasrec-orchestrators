@@ -1,7 +1,5 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -9,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,41 +35,22 @@ class ReconstructionOrchestrator {
 
     private final BaseOrchestrator base;
 
-    private final ServiceInfo stage;
-    private final ServiceInfo reader;
-    private final ServiceInfo writer;
-
-    private final List<ServiceInfo> reconstructionChain;
+    private final ApplicationInfo application;
     private final Set<ContainerName> userContainers;
     private final Map<ServiceName, DeployInfo> userServices;
 
 
     ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize) {
         base = new BaseOrchestrator(setup.frontEnd, poolSize);
-        reconstructionChain = setReconstructionChain(setup.recChain);
+        application  = setup.application;
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
-
-        stage = Objects.requireNonNull(setup.ioServices.get("stage"), "missing stage service");
-        reader = Objects.requireNonNull(setup.ioServices.get("reader"), "missing reader service");
-        writer = Objects.requireNonNull(setup.ioServices.get("writer"), "missing writer service");
 
         base.registerDataTypes(EngineDataType.JSON,
                                EngineDataType.STRING,
                                EngineDataType.SFIXED32);
         base.registerDataTypes(setup.dataTypes);
-    }
-
-
-    private static List<ServiceInfo> setReconstructionChain(List<ServiceInfo> reconstructionChain) {
-        if (reconstructionChain == null) {
-            throw new IllegalArgumentException("null reconstruction chain");
-        }
-        if (reconstructionChain.isEmpty()) {
-            throw new IllegalArgumentException("empty reconstruction chain");
-        }
-        return new ArrayList<>(reconstructionChain);
     }
 
 
@@ -122,36 +100,36 @@ class ReconstructionOrchestrator {
 
 
     void deployInputOutputServices(DpeInfo dpe, int poolsize) {
-        deployService(getServiceName(dpe, stage), stage.classpath, poolsize);
-        deployService(getServiceName(dpe, reader), reader.classpath, poolsize);
-        deployService(getServiceName(dpe, writer), writer.classpath, poolsize);
+        for (ServiceInfo service : application.getIOServices()) {
+            deployService(getServiceName(dpe, service), service.classpath, poolsize);
+        }
     }
 
 
     void deployReconstructionChain(DpeInfo dpe, int poolsize) {
-        for (ServiceInfo service : reconstructionChain) {
+        for (ServiceInfo service : application.getRecServices()) {
             deployService(getServiceName(dpe, service), service.classpath, poolsize);
         }
     }
 
 
     ServiceName getStageServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, stage);
+        return getServiceName(ioDpe, application.getStageService());
     }
 
 
     ServiceName getReaderServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, reader);
+        return getServiceName(ioDpe, application.getReaderService());
     }
 
 
     ServiceName getWriterServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, writer);
+        return getServiceName(ioDpe, application.getWriterService());
     }
 
 
     List<ServiceName> generateReconstructionChain(DpeInfo recDpe) {
-        return reconstructionChain.stream()
+        return application.getRecServices().stream()
                 .map(service -> getServiceName(recDpe, service))
                 .collect(Collectors.toList());
     }
@@ -262,22 +240,22 @@ class ReconstructionOrchestrator {
 
 
     boolean findInputOutputService(DpeInfo dpe) {
-        return findServices(dpe.name, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
+        return findServices(dpe.name, getServiceNames(dpe, application.getIOServices()));
     }
 
 
     boolean findReconstructionServices(DpeInfo dpe) {
-        return findServices(dpe.name, getServiceNames(dpe, reconstructionChain));
+        return findServices(dpe.name, getServiceNames(dpe, application.getRecServices()));
     }
 
 
     void checkInputOutputServices(DpeInfo dpe) {
-        checkServices(dpe.name, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
+        checkServices(dpe.name, getServiceNames(dpe, application.getIOServices()));
     }
 
 
     void checkReconstructionServices(DpeInfo dpe) {
-        checkServices(dpe.name, getServiceNames(dpe, reconstructionChain));
+        checkServices(dpe.name, getServiceNames(dpe, application.getRecServices()));
     }
 
 

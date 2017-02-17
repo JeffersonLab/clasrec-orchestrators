@@ -176,7 +176,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                               ReconstructionOptions opts) {
         super(setup, paths, opts);
         ioNode = localNode();
-        benchmark = new Benchmark(setup);
+        benchmark = new Benchmark(setup.application);
     }
 
 
@@ -200,7 +200,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         try {
             benchmark.update(ioNode.getRuntimeData());
             BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
-            printer.printBenchmark(setup);
+            printer.printBenchmark(setup.application);
         } catch (OrchestratorError e) {
             Logging.error("Could not generate benchmark: %s", e.getMessage());
         }

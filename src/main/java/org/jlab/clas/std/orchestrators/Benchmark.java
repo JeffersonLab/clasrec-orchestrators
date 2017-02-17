@@ -14,18 +14,18 @@ class Benchmark {
 
     final Map<ServiceInfo, Runtime> runtimeStats = new HashMap<>();
 
-    Benchmark(ReconstructionSetup setup) {
-        List<ServiceInfo> services = allServices(setup);
+    Benchmark(ApplicationInfo application) {
+        List<ServiceInfo> services = allServices(application);
         services.forEach(s -> {
             runtimeStats.put(s, new Runtime());
         });
     }
 
-    private List<ServiceInfo> allServices(ReconstructionSetup setup) {
+    private List<ServiceInfo> allServices(ApplicationInfo application) {
         List<ServiceInfo> services = new ArrayList<>();
-        services.add(setup.ioServices.get("reader"));
-        services.addAll(setup.recChain);
-        services.add(setup.ioServices.get("writer"));
+        services.add(application.getReaderService());
+        services.addAll(application.getRecServices());
+        services.add(application.getWriterService());
         return services;
     }
 

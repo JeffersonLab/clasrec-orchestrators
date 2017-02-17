@@ -12,15 +12,13 @@ class BenchmarkPrinter {
         this.totalRequests = totalRequests;
     }
 
-    void printBenchmark(ReconstructionSetup setup) {
+    void printBenchmark(ApplicationInfo application) {
         Logging.info("%nBenchmark results:");
-        ServiceInfo reader = setup.ioServices.get("reader");
-        ServiceInfo writer = setup.ioServices.get("writer");
-        printService(reader, "READER");
-        for (ServiceInfo service : setup.recChain) {
+        printService(application.getReaderService(), "READER");
+        for (ServiceInfo service : application.getRecServices()) {
             printService(service, service.name);
         }
-        printService(writer, "WRITER");
+        printService(application.getWriterService(), "WRITER");
         printTotal();
     }
 
