@@ -1,13 +1,16 @@
 package org.jlab.clas.std.orchestrators;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.ServiceRuntimeData;
@@ -65,20 +68,23 @@ class ReconstructionNode {
         application.getIODeployInfo().forEach(orchestrator::deployService);
         application.getRecDeployInfo().forEach(orchestrator::deployService);
 
-        orchestrator.checkServices(application.dpe(), application.allServices());
+        application.allServices().forEach((d, s) -> {
+            orchestrator.checkServices(d, s);
+        });
     }
 
 
     boolean checkServices() {
-        return orchestrator.findServices(application.dpe(), application.allServices());
+        return application.allServices().entrySet().stream()
+                .allMatch(e ->orchestrator.findServices(e.getKey(), e.getValue()));
     }
 
 
     void subscribeErrors(Function<ReconstructionNode, EngineCallback> callbackFn) {
         EngineCallback callback = callbackFn.apply(this);
-        application.allContainers().forEach(cont -> {
-            orchestrator.subscribeErrors(cont, callback);
-        });
+        application.allContainers().values().stream()
+                   .flatMap(set -> set.stream())
+                   .forEach(cont -> orchestrator.subscribeErrors(cont, callback));
     }
 
 
@@ -333,7 +339,10 @@ class ReconstructionNode {
 
 
     Set<ServiceRuntimeData> getRuntimeData() {
-        return orchestrator.getReport(application.dpe());
+        return application.dpes().stream()
+               .map(orchestrator::getReport)
+               .flatMap(Set::stream)
+               .collect(Collectors.toSet());
     }
 
 
@@ -345,6 +354,11 @@ class ReconstructionNode {
 
     String name() {
         return application.hostName();
+    }
+
+
+    Set<DpeName> dpes() {
+        return Collections.unmodifiableSet(application.dpes());
     }
 
 

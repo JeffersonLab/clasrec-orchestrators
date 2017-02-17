@@ -1,7 +1,10 @@
 package org.jlab.clas.std.orchestrators;
 
+import org.jlab.clara.base.ClaraLang;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +20,12 @@ class ApplicationInfo {
 
     private final Map<String, ServiceInfo> ioServices;
     private final List<ServiceInfo> recServices;
+    private final Set<ClaraLang> languages;
 
     ApplicationInfo(Map<String, ServiceInfo> ioServices, List<ServiceInfo> recServices) {
         this.ioServices = copyServices(ioServices);
         this.recServices = copyServices(recServices);
+        this.languages = parseLanguages(ioServices.values(), recServices);
     }
 
     private static Map<String, ServiceInfo> copyServices(Map<String, ServiceInfo> ioServices) {
@@ -46,6 +51,13 @@ class ApplicationInfo {
         return new ArrayList<>(recChain);
     }
 
+    private Set<ClaraLang> parseLanguages(Collection<ServiceInfo> ioServices,
+                                          Collection<ServiceInfo> recServices) {
+        return Stream.concat(ioServices.stream(), recServices.stream())
+                     .map(s -> s.lang)
+                     .collect(Collectors.toSet());
+    }
+
     ServiceInfo getStageService() {
         return ioServices.get(STAGE);
     }
@@ -69,5 +81,9 @@ class ApplicationInfo {
     Set<ServiceInfo> getAllServices() {
         return Stream.concat(ioServices.values().stream(), recServices.stream())
                      .collect(Collectors.toSet());
+    }
+
+    Set<ClaraLang> getLanguages() {
+        return languages;
     }
 }

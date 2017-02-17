@@ -26,7 +26,14 @@ final class AppData {
     static final ServiceInfo K1 = service(CONT2, "K1", ClaraLang.JAVA);
     static final ServiceInfo K2 = service(CONT2, "K2", ClaraLang.JAVA);
 
+    static final ServiceInfo C1 = service(CONT1, "C1", ClaraLang.CPP);
+    static final ServiceInfo C2 = service(CONT1, "C2", ClaraLang.CPP);
+
+    static final ServiceInfo P1 = service(CONT2, "P1", ClaraLang.PYTHON);
+
     static final DpeInfo DPE1 = dpe("10.1.1.10_java");
+    static final DpeInfo DPE2 = dpe("10.1.1.10_cpp");
+    static final DpeInfo DPE3 = dpe("10.1.1.10_python");
 
     private AppData() { }
 
@@ -34,11 +41,12 @@ final class AppData {
     static final class AppBuilder {
 
         ApplicationInfo app;
-        DpeInfo dpe;
+        Map<ClaraLang, DpeInfo> dpes;
 
         private AppBuilder() {
             app = defaultAppInfo();
-            dpe = DPE1;
+            dpes = new HashMap<>();
+            dpes.put(DPE1.name.language(), DPE1);
         }
 
         AppBuilder withServices(ServiceInfo... services) {
@@ -46,13 +54,15 @@ final class AppData {
             return this;
         }
 
-        AppBuilder withDpe(DpeInfo dpe) {
-            this.dpe = dpe;
+        AppBuilder withDpe(DpeInfo... dpes) {
+            for (DpeInfo dpe : dpes) {
+                this.dpes.put(dpe.name.language(), dpe);
+            }
             return this;
         }
 
         ReconstructionApplication build() {
-            return new ReconstructionApplication(app, dpe);
+            return new ReconstructionApplication(app, dpes);
         }
     }
 

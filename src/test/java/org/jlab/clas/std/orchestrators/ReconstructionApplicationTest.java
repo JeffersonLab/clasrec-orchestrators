@@ -1,9 +1,15 @@
 package org.jlab.clas.std.orchestrators;
 
+import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.ContainerName;
+import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.ServiceName;
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -37,7 +43,7 @@ public class ReconstructionApplicationTest {
 
 
     @Test
-    public void getReconstructionServices() throws Exception {
+    public void getReconstructionServicesForSingleLangApplication() throws Exception {
         ReconstructionApplication app = AppData.builder().build();
 
         ServiceName[] expected = toServices("10.1.1.10_java:master:J1",
@@ -49,24 +55,74 @@ public class ReconstructionApplicationTest {
 
 
     @Test
+    public void getReconstructionServicesForMultiLangApplication() throws Exception {
+        ReconstructionApplication app = AppData.builder()
+                .withServices(AppData.J1, AppData.C1, AppData.C2, AppData.P1)
+                .withDpe(AppData.DPE1, AppData.DPE2, AppData.DPE3)
+                .build();
+
+        ServiceName[] expected = toServices("10.1.1.10_java:master:J1",
+                                            "10.1.1.10_cpp:master:C1",
+                                            "10.1.1.10_cpp:master:C2",
+                                            "10.1.1.10_python:slave:P1");
+
+        assertThat(app.recServices(), containsInAnyOrder(expected));
+    }
+
+
+    @Test
     public void getUniqueContainer() throws Exception {
         ReconstructionApplication app = AppData.builder().build();
 
         ContainerName[] expected = toContainers("10.1.1.10_java:master");
 
-        assertThat(app.allContainers(), containsInAnyOrder(expected));
+        assertThat(flatContainers(app.allContainers()), containsInAnyOrder(expected));
     }
 
 
     @Test
-    public void getAllContainers() throws Exception {
+    public void getAllContainersForSingleLangApplication() throws Exception {
         ReconstructionApplication app = AppData.builder()
                 .withServices(AppData.J1, AppData.J2, AppData.K1)
                 .build();
 
         ContainerName[] expected = toContainers("10.1.1.10_java:master", "10.1.1.10_java:slave");
 
-        assertThat(app.allContainers(), containsInAnyOrder(expected));
+        assertThat(flatContainers(app.allContainers()), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void getAllContainersForMultiLangApplication() throws Exception {
+        ReconstructionApplication app = AppData.builder()
+                .withServices(AppData.J1, AppData.K1, AppData.C1, AppData.P1)
+                .withDpe(AppData.DPE1, AppData.DPE2, AppData.DPE3)
+                .build();
+
+        ContainerName[] expected = toContainers("10.1.1.10_java:master",
+                                                "10.1.1.10_java:slave",
+                                                "10.1.1.10_cpp:master",
+                                                "10.1.1.10_python:slave");
+
+        assertThat(flatContainers(app.allContainers()), containsInAnyOrder(expected));
+    }
+
+
+    @Test
+    public void getLanguageForSingleLangApplication() throws Exception {
+        ApplicationInfo info = AppData.newAppInfo(AppData.J1, AppData.J2, AppData.J3);
+
+        assertThat(info.getLanguages(), containsInAnyOrder(ClaraLang.JAVA));
+    }
+
+
+    @Test
+    public void getLanguagesForMultiLangApplication() throws Exception {
+        ApplicationInfo info = AppData.newAppInfo(AppData.J1, AppData.C1, AppData.P1);
+
+        ClaraLang[] expected = {ClaraLang.JAVA, ClaraLang.CPP, ClaraLang.PYTHON};
+
+        assertThat(info.getLanguages(), containsInAnyOrder(expected));
     }
 
 
@@ -81,5 +137,12 @@ public class ReconstructionApplicationTest {
         return Stream.of(elem)
                      .map(ContainerName::new)
                      .toArray(ContainerName[]::new);
+    }
+
+
+    private static List<ContainerName> flatContainers(Map<DpeName, Set<ContainerName>> all) {
+        return all.values().stream()
+                  .flatMap(Set::stream)
+                  .collect(Collectors.toList());
     }
 }
