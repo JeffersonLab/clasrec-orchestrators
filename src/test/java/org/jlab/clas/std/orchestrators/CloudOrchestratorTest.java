@@ -182,12 +182,19 @@ public class CloudOrchestratorTest {
 
     private class NodeData {
 
+        private final ApplicationInfo app;
+
+        NodeData() {
+            this.app = AppData.defaultAppInfo();
+        }
+
         DpeReportCBTest callback(boolean useFrontEnd, int maxNodes) {
-            return new DpeReportCBTest(useFrontEnd, maxNodes);
+            return new DpeReportCBTest(app, useFrontEnd, maxNodes);
         }
 
         ReconstructionNode node(String host) {
-            return new ReconstructionNode(orchestrator, dpe(host));
+            ReconstructionApplication app = AppData.builder().withDpe(dpe(host)).build();
+            return new ReconstructionNode(orchestrator, app);
         }
 
         ReconstructionNode[] nodes(String... hosts) {
@@ -208,11 +215,12 @@ public class CloudOrchestratorTest {
         private final Consumer<ReconstructionNode> nodeConsumer;
         private final DpeReportCB callback;
 
-        DpeReportCBTest(boolean useFrontEnd, int maxNodes) {
+        DpeReportCBTest(ApplicationInfo application, boolean useFrontEnd, int maxNodes) {
             tasks = Collections.synchronizedList(new ArrayList<>());
             nodes = Collections.synchronizedList(new ArrayList<>());
             nodeConsumer = node -> nodes.add(node);
-            callback = new DpeReportCB(orchestrator, options(useFrontEnd, maxNodes), nodeConsumer);
+            callback = new DpeReportCB(orchestrator, options(useFrontEnd, maxNodes),
+                                       application, nodeConsumer);
         }
 
         public void callback(String dpeName) {

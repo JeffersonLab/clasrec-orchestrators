@@ -31,6 +31,37 @@ final class AppData {
     private AppData() { }
 
 
+    static final class AppBuilder {
+
+        ApplicationInfo app;
+        DpeInfo dpe;
+
+        private AppBuilder() {
+            app = defaultAppInfo();
+            dpe = DPE1;
+        }
+
+        AppBuilder withServices(ServiceInfo... services) {
+            this.app = new ApplicationInfo(ioServices(), recServices(services));
+            return this;
+        }
+
+        AppBuilder withDpe(DpeInfo dpe) {
+            this.dpe = dpe;
+            return this;
+        }
+
+        ReconstructionApplication build() {
+            return new ReconstructionApplication(app, dpe);
+        }
+    }
+
+
+    static AppBuilder builder() {
+        return new AppBuilder();
+    }
+
+
     static ApplicationInfo defaultAppInfo() {
         return newAppInfo(J1, J2, J3);
     }

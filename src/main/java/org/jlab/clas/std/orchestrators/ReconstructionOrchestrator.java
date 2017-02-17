@@ -1,10 +1,8 @@
 package org.jlab.clas.std.orchestrators;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -12,7 +10,6 @@ import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import org.jlab.clara.base.BaseOrchestrator;
 import org.jlab.clara.base.ClaraFilters;
@@ -35,14 +32,12 @@ class ReconstructionOrchestrator {
 
     private final BaseOrchestrator base;
 
-    private final ApplicationInfo application;
     private final Set<ContainerName> userContainers;
     private final Map<ServiceName, DeployInfo> userServices;
 
 
     ReconstructionOrchestrator(ReconstructionSetup setup, int poolSize) {
         base = new BaseOrchestrator(setup.frontEnd, poolSize);
-        application  = setup.application;
 
         userContainers = Collections.newSetFromMap(new ConcurrentHashMap<ContainerName, Boolean>());
         userServices = new ConcurrentHashMap<>();
@@ -54,11 +49,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void deployService(ServiceName service, String classPath, int poolsize) {
-        deployService(new DeployInfo(service, classPath, poolsize));
-    }
-
-    private void deployService(DeployInfo service) {
+    void deployService(DeployInfo service) {
         try {
             ContainerName containerName = service.name.container();
             if (!userContainers.contains(containerName)) {
@@ -99,42 +90,6 @@ class ReconstructionOrchestrator {
     }
 
 
-    void deployInputOutputServices(DpeInfo dpe, int poolsize) {
-        for (ServiceInfo service : application.getIOServices()) {
-            deployService(getServiceName(dpe, service), service.classpath, poolsize);
-        }
-    }
-
-
-    void deployReconstructionChain(DpeInfo dpe, int poolsize) {
-        for (ServiceInfo service : application.getRecServices()) {
-            deployService(getServiceName(dpe, service), service.classpath, poolsize);
-        }
-    }
-
-
-    ServiceName getStageServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, application.getStageService());
-    }
-
-
-    ServiceName getReaderServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, application.getReaderService());
-    }
-
-
-    ServiceName getWriterServiceName(DpeInfo ioDpe) {
-        return getServiceName(ioDpe, application.getWriterService());
-    }
-
-
-    List<ServiceName> generateReconstructionChain(DpeInfo recDpe) {
-        return application.getRecServices().stream()
-                .map(service -> getServiceName(recDpe, service))
-                .collect(Collectors.toList());
-    }
-
-
     private Set<ContainerName> getRegisteredContainers(DpeName dpe) {
         try {
             return base.query()
@@ -169,7 +124,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void checkServices(DpeName dpe, Set<ServiceName> services) {
+    void checkServices(DpeName dpe, Set<ServiceName> services) {
         final int sleepTime = 2000;
         final int totalConnectTime = 1000 * 10 * services.size();
         final int maxAttempts = totalConnectTime / sleepTime;
@@ -234,40 +189,8 @@ class ReconstructionOrchestrator {
     }
 
 
-    private boolean findServices(DpeName dpe, Set<ServiceName> services) {
+    boolean findServices(DpeName dpe, Set<ServiceName> services) {
         return findMissingServices(services, getRegisteredServices(dpe)).isEmpty();
-    }
-
-
-    boolean findInputOutputService(DpeInfo dpe) {
-        return findServices(dpe.name, getServiceNames(dpe, application.getIOServices()));
-    }
-
-
-    boolean findReconstructionServices(DpeInfo dpe) {
-        return findServices(dpe.name, getServiceNames(dpe, application.getRecServices()));
-    }
-
-
-    void checkInputOutputServices(DpeInfo dpe) {
-        checkServices(dpe.name, getServiceNames(dpe, application.getIOServices()));
-    }
-
-
-    void checkReconstructionServices(DpeInfo dpe) {
-        checkServices(dpe.name, getServiceNames(dpe, application.getRecServices()));
-    }
-
-
-    private ServiceName getServiceName(DpeInfo dpe, ServiceInfo service) {
-        return new ServiceName(dpe.name, service.cont, service.name);
-    }
-
-
-    private Set<ServiceName> getServiceNames(DpeInfo dpe, Collection<ServiceInfo> services) {
-        return services.stream()
-                .map(service -> getServiceName(dpe, service))
-                .collect(Collectors.toSet());
     }
 
 

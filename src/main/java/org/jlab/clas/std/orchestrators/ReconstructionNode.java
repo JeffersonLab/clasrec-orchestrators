@@ -1,7 +1,6 @@
 package org.jlab.clas.std.orchestrators;
 
 import java.io.File;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -9,8 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
-import org.jlab.clara.base.Composition;
-import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.ServiceRuntimeData;
@@ -26,10 +23,8 @@ import org.json.JSONObject;
 class ReconstructionNode {
 
     private final ReconstructionOrchestrator orchestrator;
+    private final ReconstructionApplication application;
 
-    private final DpeInfo dpe;
-
-    private final ContainerName containerName;
     private final ServiceName stageName;
     private final ServiceName readerName;
     private final ServiceName writerName;
@@ -48,46 +43,42 @@ class ReconstructionNode {
     AtomicLong startTime = new AtomicLong();
 
 
-    ReconstructionNode(ReconstructionOrchestrator orchestrator, DpeInfo dpe) {
+    ReconstructionNode(ReconstructionOrchestrator orchestrator,
+                       ReconstructionApplication application) {
         if (orchestrator == null) {
             throw new IllegalArgumentException("Null orchestrator parameter");
         }
-        if (dpe == null) {
-            throw new IllegalArgumentException("Null DPE parameter");
+        if (application == null) {
+            throw new IllegalArgumentException("Null application parameter");
         }
 
-        this.dpe = dpe;
+        this.application = application;
         this.orchestrator = orchestrator;
 
-        this.containerName = new ContainerName(dpe.name,
-                                               ReconstructionConfigParser.getDefaultContainer());
-        this.stageName = orchestrator.getStageServiceName(dpe);
-        this.readerName = orchestrator.getReaderServiceName(dpe);
-        this.writerName = orchestrator.getWriterServiceName(dpe);
+        this.stageName = application.stageService();
+        this.readerName = application.readerService();
+        this.writerName = application.writerService();
     }
 
 
     void deployServices() {
-        orchestrator.deployInputOutputServices(dpe, 1);
-        orchestrator.deployReconstructionChain(dpe, dpe.cores);
-        orchestrator.checkInputOutputServices(dpe);
-        orchestrator.checkReconstructionServices(dpe);
+        application.getIODeployInfo().forEach(orchestrator::deployService);
+        application.getRecDeployInfo().forEach(orchestrator::deployService);
+
+        orchestrator.checkServices(application.dpe(), application.allServices());
     }
 
 
     boolean checkServices() {
-        if (!orchestrator.findInputOutputService(dpe)) {
-            return false;
-        }
-        if (!orchestrator.findReconstructionServices(dpe)) {
-            return false;
-        }
-        return true;
+        return orchestrator.findServices(application.dpe(), application.allServices());
     }
 
 
     void subscribeErrors(Function<ReconstructionNode, EngineCallback> callbackFn) {
-        orchestrator.subscribeErrors(containerName, callbackFn.apply(this));
+        EngineCallback callback = callbackFn.apply(this);
+        application.allContainers().forEach(cont -> {
+            orchestrator.subscribeErrors(cont, callback);
+        });
     }
 
 
@@ -297,7 +288,7 @@ class ReconstructionNode {
 
 
     void configureServices(EngineData data) {
-        for (ServiceName service : orchestrator.generateReconstructionChain(dpe)) {
+        for (ServiceName service : application.recServices()) {
             try {
                 orchestrator.syncConfig(service, data, 2, TimeUnit.MINUTES);
             } catch (ClaraException | TimeoutException e) {
@@ -328,43 +319,32 @@ class ReconstructionNode {
             EngineData data = new EngineData();
             data.setData(EngineDataType.STRING.mimeType(), type);
             data.setCommunicationId(requestId);
-            List<ServiceName> chain = orchestrator.generateReconstructionChain(dpe);
-            orchestrator.send(generateComposition(chain), data);
+            orchestrator.send(application.composition(), data);
         } catch (ClaraException e) {
             throw new OrchestratorError("Could not request reconstruction on = " + name(), e);
         }
     }
 
 
-    private Composition generateComposition(List<ServiceName> chain) {
-        String composition = readerName.canonicalName();
-        for (ServiceName service : chain) {
-            composition += "+" + service.canonicalName();
-        }
-        composition += "+" + writerName.canonicalName();
-        composition += "+" + readerName.canonicalName();
-        composition += ";";
-        return new Composition(composition);
-    }
-
-
     private int numCores(int maxCores) {
-        return dpe.cores <= maxCores ? dpe.cores : maxCores;
+        int appCores = application.maxCores();
+        return appCores <= maxCores ? appCores : maxCores;
     }
 
 
     Set<ServiceRuntimeData> getRuntimeData() {
-        return orchestrator.getReport(dpe.name);
+        return orchestrator.getReport(application.dpe());
     }
 
 
     boolean isFrontEnd() {
-        return dpe.name.equals(orchestrator.getFrontEnd());
+        String frontEndHost = orchestrator.getFrontEnd().address().host();
+        return frontEndHost.equals(name());
     }
 
 
     String name() {
-        return dpe.name.canonicalName();
+        return application.hostName();
     }
 
 
@@ -372,7 +352,7 @@ class ReconstructionNode {
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + dpe.hashCode();
+        result = prime * result + application.hashCode();
         return result;
     }
 
@@ -389,7 +369,7 @@ class ReconstructionNode {
             return false;
         }
         ReconstructionNode other = (ReconstructionNode) obj;
-        if (!dpe.equals(other.dpe)) {
+        if (!application.equals(other.application)) {
             return false;
         }
         return true;
@@ -398,6 +378,6 @@ class ReconstructionNode {
 
     @Override
     public String toString() {
-        return dpe.name.toString();
+        return application.toString();
     }
 }

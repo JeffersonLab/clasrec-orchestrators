@@ -272,7 +272,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
     void start() {
         printStartup();
         Logging.info("Waiting for reconstruction nodes...");
-        DpeReportCB dpeCallback = new DpeReportCB(orchestrator, options, this::executeSetup);
+        DpeReportCB dpeCallback = new DpeReportCB(orchestrator, options, setup.application,
+                                                  this::executeSetup);
         orchestrator.subscribeDpes(dpeCallback, setup.session);
     }
 
@@ -308,21 +309,25 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         private final ReconstructionOrchestrator orchestrator;
         private final ReconstructionOptions options;
+        private final ApplicationInfo application;
 
         private final Consumer<ReconstructionNode> nodeConsumer;
         private final Set<ReconstructionNode> availableNodes = new HashSet<>();
 
         DpeReportCB(ReconstructionOrchestrator orchestrator,
                     ReconstructionOptions options,
+                    ApplicationInfo application,
                     Consumer<ReconstructionNode> nodeConsumer) {
             this.orchestrator = orchestrator;
             this.options = options;
+            this.application = application;
             this.nodeConsumer = nodeConsumer;
         }
 
         @Override
         public void callback(DpeInfo dpe) {
-            final ReconstructionNode node = new ReconstructionNode(orchestrator, dpe);
+            final ReconstructionApplication app = new ReconstructionApplication(application, dpe);
+            final ReconstructionNode node = new ReconstructionNode(orchestrator, app);
             synchronized (availableNodes) {
                 if (availableNodes.size() == options.maxNodes || ignoreDpe(dpe)) {
                     return;

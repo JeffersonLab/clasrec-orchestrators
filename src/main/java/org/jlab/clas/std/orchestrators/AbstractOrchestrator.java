@@ -269,7 +269,8 @@ abstract class AbstractOrchestrator {
     ReconstructionNode localNode() {
         int cores = Runtime.getRuntime().availableProcessors();
         DpeInfo dpe = new DpeInfo(orchestrator.getFrontEnd(), cores, DpeInfo.DEFAULT_CLARA_HOME);
-        return new ReconstructionNode(orchestrator, dpe);
+        ReconstructionApplication app = new ReconstructionApplication(setup.application, dpe);
+        return new ReconstructionNode(orchestrator, app);
     }
 
 
