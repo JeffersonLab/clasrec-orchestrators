@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import org.jlab.clara.base.BaseOrchestrator;
 import org.jlab.clara.base.ClaraFilters;
 import org.jlab.clara.base.ClaraName;
+import org.jlab.clara.base.Composition;
 import org.jlab.clara.base.ContainerName;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.error.ClaraException;
@@ -27,13 +28,15 @@ import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.GenericCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.ServiceRuntimeData;
+import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clara.engine.EngineStatus;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
+import org.json.JSONObject;
 
 class ReconstructionOrchestrator {
 
-    final BaseOrchestrator base;
+    private final BaseOrchestrator base;
 
     private final ServiceInfo stage;
     private final ServiceInfo reader;
@@ -70,11 +73,6 @@ class ReconstructionOrchestrator {
             throw new IllegalArgumentException("empty reconstruction chain");
         }
         return new ArrayList<>(reconstructionChain);
-    }
-
-
-    BaseOrchestrator base() {
-        return base;
     }
 
 
@@ -292,6 +290,61 @@ class ReconstructionOrchestrator {
         return services.stream()
                 .map(service -> getServiceName(dpe, service))
                 .collect(Collectors.toSet());
+    }
+
+
+    void syncConfig(ServiceName service, JSONObject data, int wait, TimeUnit unit)
+            throws ClaraException, TimeoutException {
+        EngineData input = new EngineData();
+        input.setData(EngineDataType.JSON.mimeType(), data.toString());
+        syncConfig(service, input, wait, unit);
+    }
+
+
+    void syncConfig(ServiceName service, EngineData data, int wait, TimeUnit unit)
+            throws ClaraException, TimeoutException {
+        base.configure(service).withData(data).syncRun(wait, unit);
+    }
+
+
+    void send(Composition composition, EngineData data) throws ClaraException {
+        base.execute(composition).withData(data).run();
+    }
+
+
+    EngineData syncSend(ServiceName service, String data, int wait, TimeUnit unit)
+            throws ClaraException, TimeoutException {
+        EngineData input = new EngineData();
+        input.setData(EngineDataType.STRING.mimeType(), data);
+        return syncSend(service, input, wait, unit);
+    }
+
+
+    EngineData syncSend(ServiceName service, JSONObject data, int wait, TimeUnit unit)
+            throws ClaraException, TimeoutException {
+        EngineData input = new EngineData();
+        input.setData(EngineDataType.JSON.mimeType(), data.toString());
+        return syncSend(service, input, wait, unit);
+    }
+
+
+    EngineData syncSend(ServiceName service, EngineData input, int wait, TimeUnit unit)
+            throws ClaraException, TimeoutException {
+        EngineData output = base.execute(service).withData(input).syncRun(wait, unit);
+        if (output.getStatus() == EngineStatus.ERROR) {
+            throw new ClaraException(output.getDescription());
+        }
+        return output;
+    }
+
+
+    void startDoneReporting(ServiceName service, int frequency) throws ClaraException {
+        base.configure(service).startDoneReporting(frequency).run();
+    }
+
+
+    void stopDoneReporting(ServiceName service) throws ClaraException {
+        base.configure(service).stopDoneReporting().run();
     }
 
 

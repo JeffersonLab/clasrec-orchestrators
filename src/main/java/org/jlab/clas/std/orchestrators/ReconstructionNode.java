@@ -64,11 +64,15 @@ class ReconstructionNode {
 
 
     void setPaths(String inputPath, String outputPath, String stagePath) {
-        JSONObject data = new JSONObject();
-        data.put("input_path", inputPath);
-        data.put("output_path", outputPath);
-        data.put("stage_path", stagePath);
-        syncConfig(stageName, data, 2, TimeUnit.MINUTES);
+        try {
+            JSONObject data = new JSONObject();
+            data.put("input_path", inputPath);
+            data.put("output_path", outputPath);
+            data.put("stage_path", stagePath);
+            orchestrator.syncConfig(stageName, data, 2, TimeUnit.MINUTES);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not configure directories", e);
+        }
     }
 
 
@@ -84,7 +88,7 @@ class ReconstructionNode {
             data.put("file", currentInputFileName);
 
             Logging.info("Staging file %s on %s", currentInputFileName, dpe.name);
-            EngineData result = syncSend(stageName, data, 5, TimeUnit.MINUTES);
+            EngineData result = orchestrator.syncSend(stageName, data, 5, TimeUnit.MINUTES);
 
             if (!result.getStatus().equals(EngineStatus.ERROR)) {
                 String rs = (String) result.getData();
@@ -100,7 +104,6 @@ class ReconstructionNode {
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not configure directories", e);
         }
-
     }
 
 
@@ -109,6 +112,7 @@ class ReconstructionNode {
         currentOutputFile = outputFile;
         currentInputFileName = new File(inputFile).getName();
     }
+
 
     void setFileCounter(int currentFile, int totalFiles) {
         currentFileCounter.set(currentFile);
@@ -122,13 +126,13 @@ class ReconstructionNode {
             cleanRequest.put("type", "exec");
             cleanRequest.put("action", "remove_input");
             cleanRequest.put("file", currentInputFileName);
-            EngineData rr = syncSend(stageName, cleanRequest, 5, TimeUnit.MINUTES);
+            EngineData rr = orchestrator.syncSend(stageName, cleanRequest, 5, TimeUnit.MINUTES);
 
             JSONObject saveRequest = new JSONObject();
             saveRequest.put("type", "exec");
             saveRequest.put("action", "save_output");
             saveRequest.put("file", currentInputFileName);
-            EngineData rs = syncSend(stageName, saveRequest, 5, TimeUnit.MINUTES);
+            EngineData rs = orchestrator.syncSend(stageName, saveRequest, 5, TimeUnit.MINUTES);
 
             currentInputFileName = ClaraConstants.UNDEFINED;
             currentInputFile = ClaraConstants.UNDEFINED;
@@ -157,7 +161,7 @@ class ReconstructionNode {
             request.put("type", "exec");
             request.put("action", "clear_stage");
             request.put("file", currentInputFileName);
-            EngineData rr = syncSend(stageName, request, 5, TimeUnit.MINUTES);
+            EngineData rr = orchestrator.syncSend(stageName, request, 5, TimeUnit.MINUTES);
             if (rr.getStatus().equals(EngineStatus.ERROR)) {
                 System.err.println(rr.getDescription());
                 return false;
@@ -175,11 +179,15 @@ class ReconstructionNode {
         totalEvents.set(0);
 
         // open input file
-        Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
-        JSONObject inputConfig = new JSONObject();
-        inputConfig.put("action", "open");
-        inputConfig.put("file", currentInputFile);
-        syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
+        try {
+            Logging.info("Opening file %s on %s", currentInputFileName, dpe.name);
+            JSONObject inputConfig = new JSONObject();
+            inputConfig.put("action", "open");
+            inputConfig.put("file", currentInputFile);
+            orchestrator.syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not open input file", e);
+        }
 
         // total number of events in the file
         totalEvents.set(requestNumberOfEvents());
@@ -188,12 +196,16 @@ class ReconstructionNode {
         String fileOrder = requestFileOrder();
 
         // open output file
-        JSONObject outputConfig = new JSONObject();
-        outputConfig.put("action", "open");
-        outputConfig.put("file", currentOutputFile);
-        outputConfig.put("order", fileOrder);
-        outputConfig.put("overwrite", true);
-        syncConfig(writerName, outputConfig, 5, TimeUnit.MINUTES);
+        try {
+            JSONObject outputConfig = new JSONObject();
+            outputConfig.put("action", "open");
+            outputConfig.put("file", currentOutputFile);
+            outputConfig.put("order", fileOrder);
+            outputConfig.put("overwrite", true);
+            orchestrator.syncConfig(writerName, outputConfig, 5, TimeUnit.MINUTES);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not open output file", e);
+        }
     }
 
 
@@ -203,29 +215,37 @@ class ReconstructionNode {
             return;
         }
         try {
-            orchestrator.base.configure(writerName).startDoneReporting(frequency).run();
+            orchestrator.startDoneReporting(writerName, frequency);
         } catch (ClaraException e) {
-            throw new OrchestratorError("Could not configure service = " + writerName, e);
+            throw new OrchestratorError("Could not configure writer", e);
         }
     }
 
 
     void closeFiles() {
-        JSONObject closeInput = new JSONObject();
-        closeInput.put("action", "close");
-        closeInput.put("file", currentInputFile);
-        syncConfig(readerName, closeInput, 5, TimeUnit.MINUTES);
+        try {
+            JSONObject closeInput = new JSONObject();
+            closeInput.put("action", "close");
+            closeInput.put("file", currentInputFile);
+            orchestrator.syncConfig(readerName, closeInput, 5, TimeUnit.MINUTES);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not close input file", e);
+        }
 
-        JSONObject closeOutput = new JSONObject();
-        closeOutput.put("action", "close");
-        closeOutput.put("file", currentOutputFile);
-        syncConfig(writerName, closeOutput, 5, TimeUnit.MINUTES);
+        try {
+            JSONObject closeOutput = new JSONObject();
+            closeOutput.put("action", "close");
+            closeOutput.put("file", currentOutputFile);
+            orchestrator.syncConfig(writerName, closeOutput, 5, TimeUnit.MINUTES);
+        } catch (ClaraException | TimeoutException e) {
+            throw new OrchestratorError("Could not close output file", e);
+        }
     }
 
 
     private String requestFileOrder() {
         try {
-            EngineData output = syncSend(readerName, "order", 1, TimeUnit.MINUTES);
+            EngineData output = orchestrator.syncSend(readerName, "order", 1, TimeUnit.MINUTES);
             return (String) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get input file order", e);
@@ -235,7 +255,7 @@ class ReconstructionNode {
 
     private int requestNumberOfEvents() {
         try {
-            EngineData output = syncSend(readerName, "count", 1, TimeUnit.MINUTES);
+            EngineData output = orchestrator.syncSend(readerName, "count", 1, TimeUnit.MINUTES);
             return (Integer) output.getData();
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not get number of input events", e);
@@ -245,9 +265,7 @@ class ReconstructionNode {
 
     void configureService(ServiceName service, EngineData data) {
         try {
-            orchestrator.base.configure(service)
-                             .withData(data)
-                             .syncRun(2, TimeUnit.MINUTES);
+            orchestrator.syncConfig(service, data, 2, TimeUnit.MINUTES);
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not configure " + service, e);
         }
@@ -273,8 +291,7 @@ class ReconstructionNode {
             EngineData data = new EngineData();
             data.setData(EngineDataType.STRING.mimeType(), type);
             data.setCommunicationId(requestId);
-            Composition composition = generateComposition(chain);
-            orchestrator.base.execute(composition).withData(data).run();
+            orchestrator.send(generateComposition(chain), data);
         } catch (ClaraException e) {
             throw new OrchestratorError("Could not request reconstruction on = " + dpeName, e);
         }
@@ -290,47 +307,6 @@ class ReconstructionNode {
         composition += "+" + readerName.canonicalName();
         composition += ";";
         return new Composition(composition);
-    }
-
-
-    private void syncConfig(ServiceName service, JSONObject data, int wait, TimeUnit unit) {
-        try {
-            EngineData input = new EngineData();
-            input.setData(EngineDataType.JSON.mimeType(), data.toString());
-            orchestrator.base.configure(service)
-                             .withData(input)
-                             .syncRun(wait, unit);
-        } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not configure service = " + service, e);
-        }
-    }
-
-
-    private EngineData syncSend(ServiceName service, String data, int wait, TimeUnit unit)
-            throws ClaraException, TimeoutException {
-        EngineData input = new EngineData();
-        input.setData(EngineDataType.STRING.mimeType(), data);
-        return syncSend(service, input, wait, unit);
-    }
-
-
-    private EngineData syncSend(ServiceName service, JSONObject data, int wait, TimeUnit unit)
-            throws ClaraException, TimeoutException {
-        EngineData input = new EngineData();
-        input.setData(EngineDataType.JSON.mimeType(), data.toString());
-        return syncSend(service, input, wait, unit);
-    }
-
-
-    private EngineData syncSend(ServiceName service, EngineData input, int wait, TimeUnit unit)
-            throws ClaraException, TimeoutException {
-        EngineData output = orchestrator.base.execute(service)
-                                             .withData(input)
-                                             .syncRun(wait, unit);
-        if (output.getStatus() == EngineStatus.ERROR) {
-            throw new ClaraException(output.getDescription());
-        }
-        return output;
     }
 
 
