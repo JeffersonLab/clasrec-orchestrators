@@ -175,10 +175,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                               ReconstructionPaths paths,
                               ReconstructionOptions opts) {
         super(setup, paths, opts);
-        int cores = Runtime.getRuntime().availableProcessors();
-        DpeInfo dpe = new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME);
-        ioNode = new ReconstructionNode(orchestrator, dpe);
-
+        ioNode = localNode();
         benchmark = new Benchmark(setup);
     }
 

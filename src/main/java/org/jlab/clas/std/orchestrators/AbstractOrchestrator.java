@@ -266,6 +266,13 @@ abstract class AbstractOrchestrator {
     }
 
 
+    ReconstructionNode localNode() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        DpeInfo dpe = new DpeInfo(orchestrator.getFrontEnd(), cores, DpeInfo.DEFAULT_CLARA_HOME);
+        return new ReconstructionNode(orchestrator, dpe);
+    }
+
+
     /**
      * @throws RejectedExecutionException
      */
@@ -385,7 +392,7 @@ abstract class AbstractOrchestrator {
                 requestedFiles.add(file);
             }
 
-            ReconstructionNode localNode = getLocalNode();
+            ReconstructionNode localNode = localNode();
             localNode.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             while (!requestedFiles.isEmpty()) {
                 ReconstructionFile recFile = requestedFiles.element();
@@ -400,11 +407,6 @@ abstract class AbstractOrchestrator {
                 }
             }
         }
-
-        private ReconstructionNode getLocalNode() {
-            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
-            return new ReconstructionNode(orchestrator, dpe);
-        }
     }
 
 
@@ -412,7 +414,7 @@ abstract class AbstractOrchestrator {
 
         @Override
         public void run() {
-            ReconstructionNode localNode = getLocalNode();
+            ReconstructionNode localNode = localNode();
             while (true) {
                 ReconstructionFile recFile = finishedQueue.peek();
                 if (recFile == null) {
@@ -434,11 +436,6 @@ abstract class AbstractOrchestrator {
                     }
                 }
             }
-        }
-
-        private ReconstructionNode getLocalNode() {
-            DpeInfo dpe = new DpeInfo(setup.frontEnd, 0, DpeInfo.DEFAULT_CLARA_HOME);
-            return new ReconstructionNode(orchestrator, dpe);
         }
     }
 
