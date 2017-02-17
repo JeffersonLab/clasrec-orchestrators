@@ -19,19 +19,20 @@ import static org.hamcrest.Matchers.hasEntry;
 
 public class ReconstructionConfigParserTest {
 
-    private List<ServiceInfo> servicesList = new ArrayList<ServiceInfo>();
-    private List<DpeInfo> recNodesList = new ArrayList<DpeInfo>();
-    private List<DpeInfo> ioNodesList = new ArrayList<DpeInfo>();
+    private static final String CONT = ReconstructionConfigParser.getDefaultContainer();
+
+    private final List<ServiceInfo> servicesList = new ArrayList<ServiceInfo>();
+    private final List<DpeInfo> recNodesList = new ArrayList<DpeInfo>();
+    private final List<DpeInfo> ioNodesList = new ArrayList<DpeInfo>();
 
 
     public ReconstructionConfigParserTest() {
-        String defaultContainer = ReconstructionConfigParser.getDefaultContainer();
-        servicesList.add(new ServiceInfo("org.jlab.clas12.ec.services.ECReconstruction",
-                                         defaultContainer, "ECReconstruction"));
-        servicesList.add(new ServiceInfo("org.clas12.services.tracking.SeedFinder",
-                                         defaultContainer, "SeedFinder"));
-        servicesList.add(new ServiceInfo("org.jlab.clas12.ftof.services.FTOFReconstruction",
-                                         defaultContainer, "FTOFReconstruction"));
+        servicesList.add(service("org.jlab.clas12.ec.services.ECReconstruction",
+                                 "ECReconstruction"));
+        servicesList.add(service("org.clas12.services.tracking.SeedFinder",
+                                 "SeedFinder"));
+        servicesList.add(service("org.jlab.clas12.ftof.services.FTOFReconstruction",
+                                 "FTOFReconstruction"));
 
         String servicesDir = "/home/user/services";
         recNodesList.add(new DpeInfo("10.1.3.1_java", 12, servicesDir));
@@ -50,8 +51,8 @@ public class ReconstructionConfigParserTest {
     public void testGoodServicesFileYaml() {
         URL path = getClass().getResource("/services-ok.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
-        List<ServiceInfo> services = parser.parseReconstructionChain();
-        assertThat(services, is(servicesList));
+
+        assertThat(parser.parseReconstructionChain(), is(servicesList));
     }
 
 
@@ -70,6 +71,7 @@ public class ReconstructionConfigParserTest {
     public void testDefaultIOServices() throws Exception {
         URL path = getClass().getResource("/services-ok.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+
         Map<String, ServiceInfo> services = parser.parseInputOutputServices();
 
         assertThat(services, hasEntry(equalTo("reader"), equalTo(ioService("EvioToEvioReader"))));
@@ -81,6 +83,7 @@ public class ReconstructionConfigParserTest {
     public void testSelectedIOServices() throws Exception {
         URL path = getClass().getResource("/services-hipo.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+
         Map<String, ServiceInfo> services = parser.parseInputOutputServices();
 
         assertThat(services, hasEntry(equalTo("reader"), equalTo(ioService("HipoToHipoReader"))));
@@ -131,8 +134,11 @@ public class ReconstructionConfigParserTest {
 
 
     private static ServiceInfo ioService(String name) {
-        return new ServiceInfo("org.jlab.clas.std.services.convertors." + name,
-                               ReconstructionConfigParser.getDefaultContainer(),
-                               name);
+        return service("org.jlab.clas.std.services.convertors." + name, name);
+    }
+
+
+    private static ServiceInfo service(String classPath, String name) {
+        return new ServiceInfo(classPath, CONT, name);
     }
 }
