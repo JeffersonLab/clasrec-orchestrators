@@ -179,11 +179,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         DpeInfo dpe = new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME);
         ioNode = new ReconstructionNode(orchestrator, dpe);
 
-        List<ServiceInfo> benchmarkServices = new ArrayList<>();
-        benchmarkServices.add(setup.ioServices.get("reader"));
-        benchmarkServices.addAll(setup.recChain);
-        benchmarkServices.add(setup.ioServices.get("writer"));
-        benchmark = new Benchmark(benchmarkServices);
+        benchmark = new Benchmark(setup);
     }
 
 
@@ -206,7 +202,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
     void end() {
         try {
             benchmark.update(orchestrator.getReport(ioNode.dpe));
-            printBenchmark();
+            BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
+            printer.printBenchmark(setup);
         } catch (OrchestratorError e) {
             Logging.error("Could not generate benchmark: %s", e.getMessage());
         }
@@ -218,54 +215,6 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         Logging.info("Average processing time  = %7.2f ms", stats.localAverage());
         Logging.info("Total processing time    = %7.2f s", recTimeMs);
         Logging.info("Total orchestrator time  = %7.2f s", totalTimeMs);
-    }
-
-
-    private void printBenchmark() {
-        BenchmarkPrinter printer = new BenchmarkPrinter(benchmark, stats.totalEvents());
-        System.out.println();
-        System.out.println("Benchmark results:");
-        ServiceInfo reader = setup.ioServices.get("reader");
-        ServiceInfo writer = setup.ioServices.get("writer");
-        printer.printService(reader, "READER");
-        for (ServiceInfo service : setup.recChain) {
-            printer.printService(service, service.name);
-        }
-        printer.printService(writer, "WRITER");
-        printer.printTotal();
-    }
-
-
-    private static class BenchmarkPrinter {
-
-        private final Benchmark benchmark;
-
-        private long totalTime = 0;
-        private long totalRequests = 0;
-
-        BenchmarkPrinter(Benchmark benchmark, long totalRequests) {
-            this.benchmark = benchmark;
-            this.totalRequests = totalRequests;
-        }
-
-        void printService(ServiceInfo service, String label) {
-            long time = benchmark.time(service);
-            totalTime += time;
-            print(label, time, totalRequests);
-        }
-
-        void printTotal() {
-            print("TOTAL", totalTime, totalRequests);
-        }
-
-        private void print(String name, long time, long requests) {
-            double timePerEvent = (time / requests) / 1e3;
-            Logging.info("  %-9s  %5d events  " +
-                         "  total time = %7.2f s  " +
-                         "  average event time = %6.2f ms",
-                         name, requests, time / 1e6, timePerEvent);
-
-        }
     }
 
 

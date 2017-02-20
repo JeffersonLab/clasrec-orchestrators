@@ -4,6 +4,7 @@ import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.ServiceRuntimeData;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +14,19 @@ class Benchmark {
 
     final Map<ServiceInfo, Runtime> runtimeStats = new HashMap<>();
 
-    Benchmark(List<ServiceInfo> services) {
+    Benchmark(ReconstructionSetup setup) {
+        List<ServiceInfo> services = allServices(setup);
         services.forEach(s -> {
             runtimeStats.put(s, new Runtime());
         });
+    }
+
+    private List<ServiceInfo> allServices(ReconstructionSetup setup) {
+        List<ServiceInfo> services = new ArrayList<>();
+        services.add(setup.ioServices.get("reader"));
+        services.addAll(setup.recChain);
+        services.add(setup.ioServices.get("writer"));
+        return services;
     }
 
     void initialize(Set<ServiceRuntimeData> data) {
