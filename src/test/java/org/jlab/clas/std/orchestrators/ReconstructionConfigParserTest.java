@@ -93,6 +93,22 @@ public class ReconstructionConfigParserTest {
 
 
     @Test
+    public void testCustomIOServices() throws Exception {
+        URL path = getClass().getResource("/services-custom.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+        Map<String, ServiceInfo> services = parser.parseInputOutputServices();
+
+        ServiceInfo reader = new ServiceInfo("org.jlab.clas12.convertors.CustomReader",
+                                             CONT, "CustomReader", ClaraLang.JAVA);
+        ServiceInfo writer = new ServiceInfo("org.jlab.clas12.convertors.CustomWriter",
+                                             CONT, "CustomWriter", ClaraLang.JAVA);
+
+        assertThat(services, hasEntry(equalTo("reader"), equalTo(reader)));
+        assertThat(services, hasEntry(equalTo("writer"), equalTo(writer)));
+    }
+
+
+    @Test
     public void testGoodNodesFileYaml() {
         URL path = getClass().getResource("/nodes-ok.yaml");
         ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());

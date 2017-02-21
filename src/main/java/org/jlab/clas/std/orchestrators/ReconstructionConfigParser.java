@@ -219,9 +219,17 @@ public class ReconstructionConfigParser {
                 services.putAll(defaultIOServices(dataFormat));
             }
             Consumer<String> getTypes = key -> {
-                String f = io.optString(key);
-                if (!f.isEmpty()) {
+                if (!io.has(key)) {
+                    return;
+                }
+                String f = parseIOFormat(io, key);
+                if (f != null) {
                     services.put(key, defaultIOService(key, f));
+                    return;
+                }
+                JSONObject data = io.optJSONObject(key);
+                if (data != null) {
+                    services.put(key, parseService(data));
                 }
             };
             getTypes.accept("reader");
@@ -251,6 +259,16 @@ public class ReconstructionConfigParser {
 
     private String parseDefaultContainer() {
         return config.optString("container", DEFAULT_CONTAINER);
+    }
+
+
+    private String parseIOFormat(JSONObject data, String key) {
+        try {
+            return data.getString(key);
+        } catch (JSONException e) {
+            // not a string
+            return null;
+        }
     }
 
 

@@ -1,0 +1,15 @@
+---
+io-services:
+  reader:
+    class: org.jlab.clas12.convertors.CustomReader
+    name: CustomReader
+  writer:
+    class: org.jlab.clas12.convertors.CustomWriter
+    name: CustomWriter
+services:
+  - class: org.jlab.clas12.services.ECReconstruction
+    name: ECReconstruction
+  - class: org.jlab.clas12.services.SeedFinder
+    name: SeedFinder
+  - class: org.jlab.clas12.services.FTOFReconstruction
+    name: FTOFReconstruction
