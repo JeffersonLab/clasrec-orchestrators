@@ -2,6 +2,7 @@ package org.jlab.clas.std.orchestrators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -14,6 +15,7 @@ import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.jlab.clara.base.BaseOrchestrator;
 import org.jlab.clara.base.ClaraFilters;
@@ -152,12 +154,9 @@ class ReconstructionOrchestrator {
 
 
     List<ServiceName> generateReconstructionChain(DpeInfo recDpe) {
-        List<ServiceName> servicesNames = new ArrayList<>();
-        for (ServiceInfo service : reconstructionChain) {
-            ServiceName name = getServiceName(recDpe, service);
-            servicesNames.add(name);
-        }
-        return servicesNames;
+        return reconstructionChain.stream()
+                .map(service -> getServiceName(recDpe, service))
+                .collect(Collectors.toList());
     }
 
 
@@ -183,7 +182,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    private Set<ServiceName> findMissingServices(List<ServiceName> services,
+    private Set<ServiceName> findMissingServices(Set<ServiceName> services,
                                                  Set<ServiceName> regServices) {
         Set<ServiceName> missingServices = new HashSet<>();
         for (ServiceName s : services) {
@@ -195,7 +194,7 @@ class ReconstructionOrchestrator {
     }
 
 
-    private void checkServices(DpeInfo dpe, List<ServiceName> services) {
+    private void checkServices(DpeInfo dpe, Set<ServiceName> services) {
         final int sleepTime = 2000;
         final int totalConnectTime = 1000 * 10 * services.size();
         final int maxAttempts = totalConnectTime / sleepTime;
@@ -261,35 +260,38 @@ class ReconstructionOrchestrator {
 
 
     boolean findInputOutputService(DpeInfo dpe) {
-        List<ServiceName> services = Arrays.asList(getServiceName(dpe, reader),
-                                                   getServiceName(dpe, writer));
+        Set<ServiceName> services = getServiceNames(dpe, Arrays.asList(stage, reader, writer));
         Set<ServiceName> regServices = getRegisteredServices(dpe);
         return findMissingServices(services, regServices).isEmpty();
     }
 
 
     boolean findReconstructionServices(DpeInfo dpe) {
+        Set<ServiceName> recChain = getServiceNames(dpe, reconstructionChain);
         Set<ServiceName> regServices = getRegisteredServices(dpe);
-        return findMissingServices(generateReconstructionChain(dpe), regServices).isEmpty();
+        return findMissingServices(new HashSet<>(recChain), regServices).isEmpty();
     }
 
 
     void checkInputOutputServices(DpeInfo dpe) {
-        List<ServiceName> services = Arrays.asList(
-                getServiceName(dpe, stage),
-                getServiceName(dpe, reader),
-                getServiceName(dpe, writer));
-        checkServices(dpe, services);
+        checkServices(dpe, getServiceNames(dpe, Arrays.asList(stage, reader, writer)));
     }
 
 
     void checkReconstructionServices(DpeInfo dpe) {
-        checkServices(dpe, generateReconstructionChain(dpe));
+        checkServices(dpe, getServiceNames(dpe, reconstructionChain));
     }
 
 
     private ServiceName getServiceName(DpeInfo dpe, ServiceInfo service) {
         return new ServiceName(dpe.name, service.cont, service.name);
+    }
+
+
+    private Set<ServiceName> getServiceNames(DpeInfo dpe, Collection<ServiceInfo> services) {
+        return services.stream()
+                .map(service -> getServiceName(dpe, service))
+                .collect(Collectors.toSet());
     }
 
 
