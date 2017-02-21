@@ -237,23 +237,31 @@ public class ReconstructionConfigParser {
         if (sl == null) {
             throw error("missing list of services");
         }
-        String defaultContainer = config.optString("container", DEFAULT_CONTAINER);
         for (int i = 0; i < sl.length(); i++) {
-            JSONObject s = sl.getJSONObject(i);
-            String name = s.optString("name");
-            String classPath = s.optString("class");
-            String container = s.optString("container", defaultContainer);
-            if (name.isEmpty() || classPath.isEmpty()) {
-                throw error("missing name or class of service");
-            }
-            ServiceInfo service = new ServiceInfo(classPath, container, name, ClaraLang.JAVA);
+            ServiceInfo service = parseService(sl.getJSONObject(i));
             if (services.contains(service)) {
                 throw error(String.format("duplicated service  name = '%s' container = '%s'",
-                                          name, container));
+                                          service.name, service.cont));
             }
             services.add(service);
         }
         return services;
+    }
+
+
+    private String parseDefaultContainer() {
+        return config.optString("container", DEFAULT_CONTAINER);
+    }
+
+
+    private ServiceInfo parseService(JSONObject data) {
+        String name = data.optString("name");
+        String classPath = data.optString("class");
+        String container = data.optString("container", parseDefaultContainer());
+        if (name.isEmpty() || classPath.isEmpty()) {
+            throw error("missing name or class of service");
+        }
+        return new ServiceInfo(classPath, container, name, ClaraLang.JAVA);
     }
 
 
