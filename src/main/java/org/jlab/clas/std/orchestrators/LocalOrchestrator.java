@@ -4,7 +4,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -12,6 +14,7 @@ import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.engine.EngineData;
+import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
@@ -75,12 +78,14 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
      */
     public static final class Builder {
 
-        private final ReconstructionConfigParser parser;
-
+        private final Map<String, ServiceInfo> ioServices;
         private final List<ServiceInfo> recChain;
         private DpeName frontEnd;
 
-        private String inputFile;
+        private final Set<EngineDataType> dataTypes;
+        private final String session;
+
+        private final String inputFile;
         private String outputFile;
 
         private int threads = 1;
@@ -100,10 +105,14 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                 throw new IllegalArgumentException("inputFile parameter is empty");
             }
 
-            this.parser = new ReconstructionConfigParser(servicesFile);
+            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
 
+            this.ioServices = parser.parseInputOutputServices();
             this.recChain = parser.parseReconstructionChain();
             this.frontEnd = ReconstructionConfigParser.localDpeName();
+            this.dataTypes = parser.parseDataTypes();
+            this.session = "";
+
             this.inputFile = inputFile;
 
             Path inputFilePath = Paths.get(inputFile);
@@ -165,8 +174,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public LocalOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
-                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), "");
+            ReconstructionSetup setup = new ReconstructionSetup(frontEnd, ioServices, recChain,
+                                                                dataTypes, session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
@@ -393,15 +402,17 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         public LocalOrchestrator build() {
             ReconstructionConfigParser parser = new ReconstructionConfigParser(configFile);
 
+            ReconstructionSetup setup = new ReconstructionSetup(
+                    ReconstructionConfigParser.localDpeName(),
+                    parser.parseInputOutputServices(),
+                    parser.parseReconstructionChain(),
+                    parser.parseDataTypes(),
+                    "");
+
             String inFile = parser.parseInputFile();
             String outFile = parser.parseOutputFile();
             int nc = parser.parseNumberOfThreads();
 
-            List<ServiceInfo> recChain = parser.parseReconstructionChain();
-            DpeName frontEnd = ReconstructionConfigParser.localDpeName();
-
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
-                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), "");
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
             return new LocalOrchestrator(setup, paths, opts);

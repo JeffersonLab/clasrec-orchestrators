@@ -4,10 +4,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
+import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.ReconstructionOrchestrator.DpeCallBack;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
@@ -64,13 +66,14 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
      */
     public static class Builder {
 
-        private final ReconstructionConfigParser parser;
+        private final Map<String, ServiceInfo> ioServices;
+        private final List<ServiceInfo> recChain;
+        private final List<String> inputFiles;
 
-        final List<ServiceInfo> recChain;
-        final List<String> inputFiles;
+        private final Set<EngineDataType> dataTypes;
+        private String session = "";
 
         private DpeName frontEnd = ReconstructionConfigParser.localDpeName();
-        private String session = "";
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
         private boolean bulkStage = false;
@@ -96,9 +99,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             if (inputFiles.isEmpty()) {
                 throw new IllegalArgumentException("inputFiles list is empty");
             }
-            this.parser = new ReconstructionConfigParser(servicesFile);
+            ReconstructionConfigParser parser = new ReconstructionConfigParser(servicesFile);
+            this.ioServices = parser.parseInputOutputServices();
             this.recChain = parser.parseReconstructionChain();
             this.inputFiles = inputFiles;
+            this.dataTypes = parser.parseDataTypes();
         }
 
         /**
@@ -248,9 +253,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Creates the orchestrator.
          */
         public CloudOrchestrator build() {
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
-                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
-            ReconstructionPaths paths = new ReconstructionPaths(inputFiles,
+            ReconstructionSetup setup = new ReconstructionSetup(
+                    frontEnd, ioServices, recChain,
+                    dataTypes, session);
+            ReconstructionPaths paths = new ReconstructionPaths(
+                    inputFiles,
                     inputDir, outputDir, stageDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles, bulkStage,
@@ -416,11 +423,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             String tmpDir = config.getString(ARG_STAGE_DIR);
 
             ReconstructionConfigParser parser = new ReconstructionConfigParser(services);
-            List<ServiceInfo> recChain = parser.parseReconstructionChain();
             List<String> inFiles = parser.readInputFiles(files);
 
             ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
-                    parser.parseInputOutputServices(), recChain, parser.parseDataTypes(), session);
+                    parser.parseInputOutputServices(), parser.parseReconstructionChain(),
+                    parser.parseDataTypes(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles, bulkStage,
@@ -564,18 +571,17 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         public CloudOrchestrator build() {
             ReconstructionConfigParser parser = new ReconstructionConfigParser(configFile);
-
-            DpeName frontEnd = ReconstructionConfigParser.localDpeName();
-            List<ServiceInfo> recChain = parser.parseReconstructionChain();
-            List<String> inFiles = parser.readInputFiles();
-
-            ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
-                                              parser.parseInputOutputServices(), recChain,
-                                              parser.parseDataTypes(), "");
-            ReconstructionPaths paths = new ReconstructionPaths(inFiles,
-                                              parser.parseDirectory("input"),
-                                              parser.parseDirectory("output"),
-                                              parser.parseDirectory("tmp"));
+            ReconstructionSetup setup = new ReconstructionSetup(
+                    ReconstructionConfigParser.localDpeName(),
+                    parser.parseInputOutputServices(),
+                    parser.parseReconstructionChain(),
+                    parser.parseDataTypes(),
+                    "");
+            ReconstructionPaths paths = new ReconstructionPaths(
+                    parser.readInputFiles(),
+                    parser.parseDirectory("input"),
+                    parser.parseDirectory("output"),
+                    parser.parseDirectory("tmp"));
             ReconstructionOptions options = new ReconstructionOptions();
             return new CloudOrchestrator(setup, paths, options);
         }
