@@ -17,6 +17,7 @@ import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChecker;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
+import org.json.JSONObject;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 
 import com.martiansoftware.jsap.FlaggedOption;
@@ -83,6 +84,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         private DpeName frontEnd;
 
         private final Set<EngineDataType> dataTypes;
+        private final JSONObject config;
         private final String session;
 
         private final String inputFile;
@@ -110,6 +112,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             this.ioServices = parser.parseInputOutputServices();
             this.recChain = parser.parseReconstructionChain();
             this.frontEnd = ReconstructionConfigParser.localDpeName();
+
+            this.config = parser.parseReconstructionConfig();
             this.dataTypes = parser.parseDataTypes();
             this.session = "";
 
@@ -175,7 +179,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          */
         public LocalOrchestrator build() {
             ReconstructionSetup setup = new ReconstructionSetup(frontEnd, ioServices, recChain,
-                                                                dataTypes, session);
+                                                                dataTypes, config, session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
             ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
             return new LocalOrchestrator(setup, paths, opts);
@@ -407,6 +411,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                     parser.parseInputOutputServices(),
                     parser.parseReconstructionChain(),
                     parser.parseDataTypes(),
+                    parser.parseReconstructionConfig(),
                     "");
 
             String inFile = parser.parseInputFile();

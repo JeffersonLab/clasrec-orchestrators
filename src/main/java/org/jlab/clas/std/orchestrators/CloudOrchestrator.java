@@ -14,6 +14,7 @@ import org.jlab.clas.std.orchestrators.ReconstructionConfigParser.ConfigFileChec
 import org.jlab.clas.std.orchestrators.ReconstructionOrchestrator.DpeCallBack;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
+import org.json.JSONObject;
 
 import com.martiansoftware.jsap.FlaggedOption;
 import com.martiansoftware.jsap.JSAP;
@@ -71,6 +72,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private final List<String> inputFiles;
 
         private final Set<EngineDataType> dataTypes;
+        private final JSONObject config;
         private String session = "";
 
         private DpeName frontEnd = ReconstructionConfigParser.localDpeName();
@@ -104,6 +106,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             this.recChain = parser.parseReconstructionChain();
             this.inputFiles = inputFiles;
             this.dataTypes = parser.parseDataTypes();
+            this.config = parser.parseReconstructionConfig();
         }
 
         /**
@@ -255,7 +258,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         public CloudOrchestrator build() {
             ReconstructionSetup setup = new ReconstructionSetup(
                     frontEnd, ioServices, recChain,
-                    dataTypes, session);
+                    dataTypes, config, session);
             ReconstructionPaths paths = new ReconstructionPaths(
                     inputFiles,
                     inputDir, outputDir, stageDir);
@@ -427,7 +430,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
             ReconstructionSetup setup = new ReconstructionSetup(frontEnd,
                     parser.parseInputOutputServices(), parser.parseReconstructionChain(),
-                    parser.parseDataTypes(), session);
+                    parser.parseDataTypes(), parser.parseReconstructionConfig(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
             ReconstructionOptions options = new ReconstructionOptions(
                     useFrontEnd, stageFiles, bulkStage,
@@ -576,6 +579,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     parser.parseInputOutputServices(),
                     parser.parseReconstructionChain(),
                     parser.parseDataTypes(),
+                    parser.parseReconstructionConfig(),
                     "");
             ReconstructionPaths paths = new ReconstructionPaths(
                     parser.readInputFiles(),
