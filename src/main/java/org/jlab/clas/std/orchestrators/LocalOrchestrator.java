@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.engine.EngineData;
@@ -183,8 +184,23 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
     @Override
     void start() {
         orchTimeStart = System.currentTimeMillis();
+        printStartup();
         setupNode(ioNode);
         benchmark.initialize(ioNode.getRuntimeData());
+    }
+
+
+    private void printStartup() {
+        System.out.println("****************************************");
+        System.out.println("*        CLAS Local Orchestrator       *");
+        System.out.println("****************************************");
+        System.out.println("- Local DPE    = " + setup.frontEnd);
+        System.out.println("- Start time   = " + ClaraUtil.getCurrentTime());
+        System.out.println("- Threads      = " + options.maxThreads);
+        System.out.println();
+        System.out.println("- Input file   = " + paths.inputDir);
+        System.out.println("- Output file  = " + paths.outputDir);
+        System.out.println("****************************************");
     }
 
 
