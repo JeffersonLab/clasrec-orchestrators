@@ -15,7 +15,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import org.jlab.clara.base.ClaraLang;
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
@@ -269,13 +272,31 @@ abstract class AbstractOrchestrator {
 
     ReconstructionNode localNode() {
         int cores = Runtime.getRuntime().availableProcessors();
-        String host = setup.frontEnd.address().host();
         ReconstructionNodeBuilder builder = new ReconstructionNodeBuilder(setup.application);
-        setup.application.getLanguages().stream()
-             .map(lang -> new DpeName(host, lang))
-             .map(name -> new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME))
-             .forEach(dpe -> builder.addDpe(dpe));
+        if (setup.application.getLanguages().size() > 1) {
+            Map<ClaraLang, DpeName> localDpes = orchestrator.getLocalRegisteredDpes().stream()
+                    .collect(Collectors.toMap(DpeName::language, Function.identity()));
+            for (ClaraLang lang : setup.application.getLanguages()) {
+                DpeName name = localDpes.get(lang);
+                if (name == null) {
+                    throw new OrchestratorError("missing " + getLang(lang) + " DPE");
+                }
+                builder.addDpe(new DpeInfo(name, cores, DpeInfo.DEFAULT_CLARA_HOME));
+            }
+        } else {
+            builder.addDpe(new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME));
+        }
         return builder.build(orchestrator);
+    }
+
+
+    private String getLang(ClaraLang lang) {
+        switch (lang) {
+            case JAVA: return "Java";
+            case CPP: return "C++";
+            case PYTHON: return "Python";
+            default: throw new IllegalStateException("Unknown lang: " + lang);
+        }
     }
 
 
@@ -398,7 +419,7 @@ abstract class AbstractOrchestrator {
                 requestedFiles.add(file);
             }
 
-            ReconstructionNode localNode = localNode();
+            ReconstructionNode localNode = localIONode();
             localNode.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             while (!requestedFiles.isEmpty()) {
                 ReconstructionFile recFile = requestedFiles.element();
@@ -420,7 +441,7 @@ abstract class AbstractOrchestrator {
 
         @Override
         public void run() {
-            ReconstructionNode localNode = localNode();
+            ReconstructionNode localNode = localIONode();
             while (true) {
                 ReconstructionFile recFile = finishedQueue.peek();
                 if (recFile == null) {
@@ -443,6 +464,14 @@ abstract class AbstractOrchestrator {
                 }
             }
         }
+    }
+
+
+    private ReconstructionNode localIONode() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        ReconstructionNodeBuilder builder = new ReconstructionNodeBuilder(setup.application);
+        builder.addDpe(new DpeInfo(setup.frontEnd, cores, DpeInfo.DEFAULT_CLARA_HOME));
+        return builder.build(orchestrator);
     }
 
 
