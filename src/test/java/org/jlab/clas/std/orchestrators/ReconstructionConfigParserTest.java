@@ -8,11 +8,13 @@ import java.util.Map;
 
 import org.jlab.clara.base.ClaraLang;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorConfigError;
+import org.json.JSONObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.hasEntry;
@@ -125,6 +127,28 @@ public class ReconstructionConfigParserTest {
         );
 
         assertThat(parser.parseReconstructionChain(), is(expected));
+    }
+
+
+    @Test
+    public void testEmptyConfig() {
+        URL path = getClass().getResource("/services-ok.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+
+        JSONObject config = parser.parseReconstructionConfig();
+
+        assertThat(config.toString(), is("{}"));
+    }
+
+
+    @Test
+    public void testCustomConfig() {
+        URL path = getClass().getResource("/services-custom.yaml");
+        ReconstructionConfigParser parser = new ReconstructionConfigParser(path.getPath());
+
+        JSONObject config = parser.parseReconstructionConfig();
+
+        assertThat(config.keySet(), containsInAnyOrder("ccdb", "magnet", "kalman"));
     }
 
 

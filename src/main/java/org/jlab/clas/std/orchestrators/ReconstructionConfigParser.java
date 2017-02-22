@@ -257,6 +257,14 @@ public class ReconstructionConfigParser {
     }
 
 
+    public JSONObject parseReconstructionConfig() {
+        if (config.has("configuration")) {
+            return config.getJSONObject("configuration");
+        }
+        return new JSONObject();
+    }
+
+
     private String parseDefaultContainer() {
         return config.optString("container", DEFAULT_CONTAINER);
     }

@@ -7,6 +7,7 @@ io-services:
     class: org.jlab.clas12.convertors.CustomWriter
     name: CustomWriter
     lang: cpp
+
 services:
   - class: org.jlab.clas12.services.ECReconstruction
     name: ECReconstruction
@@ -17,3 +18,12 @@ services:
     lang: cpp
   - class: org.jlab.clas12.services.FTOFReconstruction
     name: FTOFReconstruction
+
+configuration:
+  magnet:
+    torus: 10.75
+    solenoid: 0.5
+  ccdb:
+    run: 10
+    variation: custom
+  kalman: true
