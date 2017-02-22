@@ -5,6 +5,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import org.jlab.clara.base.ClaraUtil;
 import org.jlab.clara.base.DpeName;
@@ -194,13 +196,31 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         System.out.println("****************************************");
         System.out.println("*        CLAS Local Orchestrator       *");
         System.out.println("****************************************");
-        System.out.println("- Local DPE    = " + setup.frontEnd);
+        if (setup.application.getLanguages().size() == 1) {
+            System.out.println("- Local DPE    = " + setup.frontEnd);
+        } else {
+            List<DpeName> dpes = multiLangDpes();
+            System.out.println("- Local DPEs   = " + dpes.get(0));
+            for (int i = 1; i < dpes.size(); i++) {
+                System.out.println("                 " + dpes.get(i));
+            }
+            System.out.println();
+        }
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTime());
         System.out.println("- Threads      = " + options.maxThreads);
         System.out.println();
         System.out.println("- Input file   = " + paths.inputDir);
         System.out.println("- Output file  = " + paths.outputDir);
         System.out.println("****************************************");
+    }
+
+
+    private List<DpeName> multiLangDpes() {
+        return ioNode.dpes().stream()
+            .collect(Collectors.groupingBy(DpeName::language, TreeMap::new, Collectors.toList()))
+            .values().stream()
+            .map(list -> list.get(0))
+            .collect(Collectors.toList());
     }
 
 
