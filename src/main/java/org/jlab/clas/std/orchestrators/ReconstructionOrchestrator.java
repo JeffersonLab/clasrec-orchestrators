@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -320,15 +319,28 @@ class ReconstructionOrchestrator {
         @Override
         public void callback(String data) {
             try {
-                StringTokenizer st = new StringTokenizer(data, "?");
-                DpeName name = new DpeName(st.nextToken());
-                int ncores = Integer.parseInt(st.nextToken());
-                String claraHome = st.nextToken();
-                DpeInfo dpe = new DpeInfo(name, ncores, claraHome);
+                DpeInfo dpe = data.startsWith("{") ? parseJson(data) : parseTokens(data);
                 callback.callback(dpe);
-            } catch (NoSuchElementException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+        private DpeInfo parseJson(String data) {
+            JSONObject json = new JSONObject(data);
+            DpeName name = new DpeName(json.getString("name"));
+            int ncores = json.getInt("n_cores");
+            String claraHome = json.getString("clara_home");
+            return new DpeInfo(name, ncores, claraHome);
+        }
+
+        // keep support for old DPE versions
+        private DpeInfo parseTokens(String data) {
+            StringTokenizer st = new StringTokenizer(data, "?");
+            DpeName name = new DpeName(st.nextToken());
+            int ncores = Integer.parseInt(st.nextToken());
+            String claraHome = st.nextToken();
+            return new DpeInfo(name, ncores, claraHome);
         }
     }
 }
