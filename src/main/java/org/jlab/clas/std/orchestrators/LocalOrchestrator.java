@@ -284,7 +284,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         }
 
         private DpeName parseFrontEnd() {
-            String frontEnd = config.getString(ARG_FRONTEND);
+            String frontEnd = config.getString(ARG_FRONTEND)
+                                    .replaceFirst("localhost", ClaraUtil.localhost());
             try {
                 return new DpeName(frontEnd);
             } catch (IllegalArgumentException e) {
