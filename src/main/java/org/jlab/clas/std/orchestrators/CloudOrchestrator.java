@@ -292,7 +292,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         System.out.println("****************************************");
         System.out.println("- Front-end    = " + setup.frontEnd);
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTime());
-        System.out.println("- Pool size    = " + options.poolSize);
+        System.out.println("- Threads      = " + options.maxThreads);
         System.out.println();
         System.out.println("- Input directory  = " + paths.inputDir);
         System.out.println("- Output directory = " + paths.outputDir);
