@@ -294,10 +294,10 @@ class ReconstructionNode {
     }
 
 
-    void configureServices(EngineData data) {
+    void configureServices(JSONObject configData) {
         for (ServiceName service : application.recServices()) {
             try {
-                orchestrator.syncConfig(service, data, 2, TimeUnit.MINUTES);
+                orchestrator.syncConfig(service, configData, 2, TimeUnit.MINUTES);
             } catch (ClaraException | TimeoutException e) {
                 throw new OrchestratorError("Could not configure " + service, e);
             }

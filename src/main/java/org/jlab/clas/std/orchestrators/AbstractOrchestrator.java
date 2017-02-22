@@ -23,7 +23,6 @@ import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.engine.EngineData;
-import org.jlab.clara.engine.EngineDataType;
 import org.jlab.clas.std.orchestrators.errors.OrchestratorError;
 
 
@@ -330,10 +329,7 @@ abstract class AbstractOrchestrator {
             if (options.stageFiles && !options.bulkStage) {
                 node.setPaths(paths.inputDir, paths.outputDir, paths.stageDir);
             }
-            // TODO send proper configuration data
-            EngineData configData = new EngineData();
-            configData.setData(EngineDataType.STRING.mimeType(), "config");
-            node.configureServices(configData);
+            node.configureServices(setup.globalConfig);
             Logging.info("All services configured on %s", node.name());
 
             if (options.bulkStage && node.isFrontEnd()) {

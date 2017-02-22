@@ -2,6 +2,7 @@ package org.jlab.clas.std.orchestrators;
 
 import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.ServiceName;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +19,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -202,6 +204,23 @@ public class ReconstructionNodeTest {
 
         assertThat(flatServices(namesCaptor.getAllValues()),
                    containsInAnyOrder(MultiLangData.expectedServices()));
+    }
+
+
+    @Test
+    public void sendGlobalConfiguration() throws Exception {
+        node = new ReconstructionNode(orchestrator, MultiLangData.application());
+
+        JSONObject globalConfig = new JSONObject("{ \"foo\": 1, \"bar\": 2 }");
+
+        node.configureServices(globalConfig);
+
+        ArgumentCaptor<JSONObject> configCaptor = ArgumentCaptor.forClass(JSONObject.class);
+        verify(orchestrator, times(5)).syncConfig(any(), configCaptor.capture(), anyInt(), any());
+
+        configCaptor.getAllValues().forEach(data -> {
+            assertThat(data.toString(), is(globalConfig.toString()));
+        });
     }
 
 
