@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.jlab.clara.base.BaseOrchestrator;
+import org.jlab.clara.base.ClaraAddress;
 import org.jlab.clara.base.ClaraFilters;
 import org.jlab.clara.base.ClaraName;
 import org.jlab.clara.base.Composition;
@@ -272,6 +273,18 @@ class ReconstructionOrchestrator {
             base.listen(service).done().start(callback);
         } catch (ClaraException e) {
             throw new OrchestratorError("Could not subscribe to services", e);
+        }
+    }
+
+
+    Set<DpeName> getLocalRegisteredDpes() {
+        try {
+            ClaraAddress address = base.getFrontEnd().address();
+            return base.query()
+                       .canonicalNames(ClaraFilters.dpesByHost(address.host()))
+                       .syncRun(1, TimeUnit.SECONDS);
+        } catch (TimeoutException | ClaraException e) {
+            throw new OrchestratorError("cannot connect with front-end: " + base.getFrontEnd(), e);
         }
     }
 
