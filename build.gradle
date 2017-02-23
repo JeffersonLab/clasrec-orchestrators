@@ -14,12 +14,10 @@ version = '0.8-SNAPSHOT'
 
 defaultTasks 'build'
 
-
 compileJava {
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 }
-
 
 configurations {
     testCompile.extendsFrom compileOnly
@@ -32,7 +30,7 @@ repositories {
         url 'http://clasweb.jlab.org/clas12maven/'
     }
     maven {
-        url "http://repo1.maven.org/maven2"
+        url 'http://repo1.maven.org/maven2'
     }
 }
 
