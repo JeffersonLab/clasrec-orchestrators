@@ -73,16 +73,11 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
 
         private final Set<EngineDataType> dataTypes;
         private final JSONObject config;
-        private String session = "";
+
+        private final ReconstructionOptions.Builder options = ReconstructionOptions.builder();
 
         private DpeName frontEnd = ReconstructionConfigParser.localDpeName();
-        private boolean useFrontEnd = false;
-        private boolean stageFiles = false;
-        private boolean bulkStage = false;
-
-        private int poolSize = ReconstructionOptions.DEFAULT_POOLSIZE;
-        private int maxThreads = ReconstructionOptions.MAX_THREADS;
-        private int maxNodes = ReconstructionOptions.MAX_NODES;
+        private String session = "";
 
         private String inputDir = ReconstructionPaths.INPUT_DIR;
         private String outputDir = ReconstructionPaths.OUTPUT_DIR;
@@ -136,7 +131,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * only used for registration and discovery.
          */
         public Builder useFrontEnd() {
-            this.useFrontEnd = true;
+            options.useFrontEnd();
             return this;
         }
 
@@ -153,7 +148,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * @see #withStageDirectory(String)
          */
         public Builder useStageDirectory() {
-            this.stageFiles = true;
+            options.stageFiles();
             return this;
         }
 
@@ -173,7 +168,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * @see #withStageDirectory(String)
          */
         public Builder useBulkStage() {
-            this.bulkStage = true;
+            options.bulkStage();
             return this;
         }
 
@@ -182,10 +177,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * services and nodes.
          */
         public Builder withPoolSize(int poolSize) {
-            if (poolSize <= 0) {
-                throw new IllegalArgumentException("Invalid pool size: " + poolSize);
-            }
-            this.poolSize = poolSize;
+            options.withPoolSize(poolSize);
             return this;
         }
 
@@ -194,10 +186,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * every node.
          */
         public Builder withMaxThreads(int maxThreads) {
-            if (maxThreads <= 0) {
-                throw new IllegalArgumentException("Invalid max number of threads: " + maxThreads);
-            }
-            this.maxThreads = maxThreads;
+            options.withMaxThreads(maxThreads);
             return this;
         }
 
@@ -205,10 +194,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
          * Sets the maximum number of nodes to be used for reconstruction.
          */
         public Builder withMaxNodes(int maxNodes) {
-            if (maxNodes <= 0) {
-                throw new IllegalArgumentException("Invalid max number of nodes: " + maxNodes);
-            }
-            this.maxNodes = maxNodes;
+            options.withMaxNodes(maxNodes);
             return this;
         }
 
@@ -262,10 +248,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             ReconstructionPaths paths = new ReconstructionPaths(
                     inputFiles,
                     inputDir, outputDir, stageDir);
-            ReconstructionOptions options = new ReconstructionOptions(
-                    useFrontEnd, stageFiles, bulkStage,
-                    poolSize, maxNodes, maxThreads);
-            return new CloudOrchestrator(setup, paths, options);
+            return new CloudOrchestrator(setup, paths, options.build());
         }
     }
 
@@ -410,20 +393,28 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         public CloudOrchestrator build() {
             DpeName frontEnd = parseFrontEnd();
             String session = parseSession();
-            boolean useFrontEnd = config.getBoolean(ARG_USE_FRONTEND);
-
-            int poolSize = config.getInt(ARG_POOL_SIZE);
-            int maxNodes = config.getInt(ARG_MAX_NODES);
-            int maxThreads = config.getInt(ARG_MAX_THREADS);
 
             String services = config.getString(ARG_SERVICES_FILE);
             String files = config.getString(ARG_INPUT_FILES);
-            boolean stageFiles = config.getBoolean(ARG_STAGE_FILES);
-            boolean bulkStage = config.getBoolean(ARG_BULK_STAGE);
 
             String inDir = config.getString(ARG_INPUT_DIR);
             String outDir = config.getString(ARG_OUTPUT_DIR);
             String tmpDir = config.getString(ARG_STAGE_DIR);
+
+            ReconstructionOptions.Builder options = ReconstructionOptions.builder()
+                    .withPoolSize(config.getInt(ARG_POOL_SIZE))
+                    .withMaxThreads(config.getInt(ARG_MAX_THREADS))
+                    .withMaxNodes(config.getInt(ARG_MAX_NODES));
+
+            if (config.getBoolean(ARG_USE_FRONTEND)) {
+                options.useFrontEnd();
+            }
+            if (config.getBoolean(ARG_STAGE_FILES)) {
+                options.stageFiles();
+            }
+            if (config.getBoolean(ARG_BULK_STAGE)) {
+                options.bulkStage();
+            }
 
             ReconstructionConfigParser parser = new ReconstructionConfigParser(services);
             List<String> inFiles = parser.readInputFiles(files);
@@ -432,11 +423,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     parser.parseInputOutputServices(), parser.parseReconstructionChain(),
                     parser.parseDataTypes(), parser.parseReconstructionConfig(), session);
             ReconstructionPaths paths = new ReconstructionPaths(inFiles, inDir, outDir, tmpDir);
-            ReconstructionOptions options = new ReconstructionOptions(
-                    useFrontEnd, stageFiles, bulkStage,
-                    poolSize, maxNodes, maxThreads);
 
-            return new CloudOrchestrator(setup, paths, options);
+            return new CloudOrchestrator(setup, paths, options.build());
         }
 
         private DpeName parseFrontEnd() {
@@ -586,7 +574,7 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     parser.parseDirectory("input"),
                     parser.parseDirectory("output"),
                     parser.parseDirectory("tmp"));
-            ReconstructionOptions options = new ReconstructionOptions();
+            ReconstructionOptions options = ReconstructionOptions.builder().build();
             return new CloudOrchestrator(setup, paths, options);
         }
     }

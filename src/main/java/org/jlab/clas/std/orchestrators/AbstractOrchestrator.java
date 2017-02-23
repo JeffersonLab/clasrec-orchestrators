@@ -48,63 +48,6 @@ abstract class AbstractOrchestrator {
     private volatile boolean recStatus;
     private volatile String recMsg = "Could not run reconstruction!";
 
-    static class ReconstructionOptions {
-
-        final boolean useFrontEnd;
-        final boolean stageFiles;
-        final boolean bulkStage;
-        final int poolSize;
-        final int maxNodes;
-        final int maxThreads;
-        final int reportFreq;
-
-        static final int DEFAULT_POOLSIZE = 32;
-        static final int MAX_NODES = 512;
-        static final int MAX_THREADS = 64;
-
-        /**
-         * Default options.
-         */
-        ReconstructionOptions() {
-            this(true, true, false, DEFAULT_POOLSIZE, MAX_NODES, MAX_THREADS);
-        }
-
-        /**
-         * LocalOrchestrator options.
-         */
-        ReconstructionOptions(boolean stageFiles,
-                              int poolSize,
-                              int maxThreads,
-                              int reportFreq) {
-            this.useFrontEnd = true;
-            this.stageFiles = stageFiles;
-            this.bulkStage = false;
-            this.poolSize = poolSize;
-            this.maxNodes = 1;
-            this.maxThreads = maxThreads;
-            this.reportFreq = reportFreq;
-        }
-
-        /**
-         * CloudOrchestrator options.
-         */
-        ReconstructionOptions(boolean useFrontEnd,
-                              boolean stageFiles,
-                              boolean bulkStage,
-                              int poolSize,
-                              int maxNodes,
-                              int maxThreads) {
-            this.useFrontEnd = useFrontEnd;
-            this.stageFiles = stageFiles || bulkStage;
-            this.bulkStage = bulkStage;
-            this.poolSize = poolSize;
-            this.maxNodes = maxNodes;
-            this.maxThreads = maxThreads;
-            this.reportFreq = 0;
-        }
-    }
-
-
     static class ReconstructionStats {
 
         private final Map<ReconstructionNode, NodeStats> recStats = new ConcurrentHashMap<>();

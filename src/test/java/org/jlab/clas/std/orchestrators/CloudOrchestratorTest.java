@@ -1,7 +1,6 @@
 package org.jlab.clas.std.orchestrators;
 
 import org.jlab.clara.base.DpeName;
-import org.jlab.clas.std.orchestrators.AbstractOrchestrator.ReconstructionOptions;
 import org.jlab.clas.std.orchestrators.CloudOrchestrator.DpeReportCB;
 import org.junit.Before;
 import org.junit.Test;
@@ -436,6 +435,11 @@ public class CloudOrchestratorTest {
 
 
     private static ReconstructionOptions options(boolean useFrontEnd, int maxNodes) {
-        return new ReconstructionOptions(useFrontEnd, false, false, 1, maxNodes, 1);
+        ReconstructionOptions.Builder builder = ReconstructionOptions.builder();
+        if (useFrontEnd) {
+            builder.useFrontEnd();
+        }
+        builder.withMaxNodes(maxNodes);
+        return builder.build();
     }
 }

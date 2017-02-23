@@ -90,8 +90,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         private final String inputFile;
         private String outputFile;
 
-        private int threads = 1;
-        private int reportFreq = 500;
+        private final ReconstructionOptions.Builder options;
+
 
         /**
          * Sets the required arguments to start a reconstruction.
@@ -116,6 +116,11 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             this.config = parser.parseReconstructionConfig();
             this.dataTypes = parser.parseDataTypes();
             this.session = "";
+
+            this.options = ReconstructionOptions.builder()
+                    .withPoolSize(2)
+                    .withMaxThreads(1)
+                    .withReportFrequency(500);
 
             this.inputFile = inputFile;
 
@@ -145,10 +150,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          * Sets the number of threads to be used for reconstruction.
          */
         public Builder withThreads(int numThreads) {
-            if (numThreads <= 0) {
-                throw new IllegalArgumentException("Invalid number of threads: " + numThreads);
-            }
-            this.threads = numThreads;
+            options.withMaxThreads(numThreads);
             return this;
         }
 
@@ -156,10 +158,7 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
          * Sets the frequency of the "done" reports by the standard writer.
          */
         public Builder withReportFrequency(int frequency) {
-            if (frequency <= 0) {
-                throw new IllegalArgumentException("Invalid number of threads: " + frequency);
-            }
-            this.reportFreq = frequency;
+            options.withReportFrequency(frequency);
             return this;
         }
 
@@ -181,8 +180,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             ReconstructionSetup setup = new ReconstructionSetup(frontEnd, ioServices, recChain,
                                                                 dataTypes, config, session);
             ReconstructionPaths paths = new ReconstructionPaths(inputFile, outputFile);
-            ReconstructionOptions opts = new ReconstructionOptions(false, 2, threads, reportFreq);
-            return new LocalOrchestrator(setup, paths, opts);
+
+            return new LocalOrchestrator(setup, paths, options.build());
         }
     }
 
@@ -419,7 +418,11 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             int nc = parser.parseNumberOfThreads();
 
             ReconstructionPaths paths = new ReconstructionPaths(inFile, outFile);
-            ReconstructionOptions opts = new ReconstructionOptions(false, 2, nc, 1000);
+            ReconstructionOptions opts = ReconstructionOptions.builder()
+                    .withPoolSize(2)
+                    .withMaxThreads(nc)
+                    .withReportFrequency(1000)
+                    .build();
             return new LocalOrchestrator(setup, paths, opts);
         }
     }
