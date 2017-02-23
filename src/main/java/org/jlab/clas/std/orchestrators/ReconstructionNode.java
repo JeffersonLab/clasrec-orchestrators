@@ -14,7 +14,6 @@ import org.jlab.clara.base.DpeName;
 import org.jlab.clara.base.EngineCallback;
 import org.jlab.clara.base.ServiceName;
 import org.jlab.clara.base.ServiceRuntimeData;
-import org.jlab.clara.base.core.ClaraConstants;
 import org.jlab.clara.base.error.ClaraException;
 import org.jlab.clara.engine.EngineData;
 import org.jlab.clara.engine.EngineDataType;
@@ -24,6 +23,8 @@ import org.json.JSONObject;
 
 
 class ReconstructionNode {
+
+    private static final String NO_NAME = "";
 
     private final ReconstructionOrchestrator orchestrator;
     private final ReconstructionApplication application;
@@ -109,8 +110,8 @@ class ReconstructionNode {
     boolean setFiles(String inputFileName) {
         try {
             currentInputFileName = inputFileName;
-            currentInputFile = ClaraConstants.UNDEFINED;
-            currentOutputFile = ClaraConstants.UNDEFINED;
+            currentInputFile = NO_NAME;
+            currentOutputFile = NO_NAME;
 
             JSONObject data = new JSONObject();
             data.put("type", "exec");
@@ -128,7 +129,7 @@ class ReconstructionNode {
                 return true;
             } else {
                 System.err.println(result.getDescription());
-                currentInputFileName = ClaraConstants.UNDEFINED;
+                currentInputFileName = NO_NAME;
                 return false;
             }
         } catch (ClaraException | TimeoutException e) {
@@ -164,9 +165,9 @@ class ReconstructionNode {
             saveRequest.put("file", currentInputFileName);
             EngineData rs = orchestrator.syncSend(stageName, saveRequest, 5, TimeUnit.MINUTES);
 
-            currentInputFileName = ClaraConstants.UNDEFINED;
-            currentInputFile = ClaraConstants.UNDEFINED;
-            currentOutputFile = ClaraConstants.UNDEFINED;
+            currentInputFileName = NO_NAME;
+            currentInputFile = NO_NAME;
+            currentOutputFile = NO_NAME;
 
             boolean status = true;
             if (rr.getStatus().equals(EngineStatus.ERROR)) {
