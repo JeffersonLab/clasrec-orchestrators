@@ -163,6 +163,22 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         }
 
         /**
+         * Sets the number of events to skip.
+         */
+        public Builder withSkipEvents(int skip) {
+            options.withSkipEvents(skip);
+            return this;
+        }
+
+        /**
+         * Sets the maximum number of events to read.
+         */
+        public Builder withMaxEvents(int max) {
+            options.withMaxEvents(max);
+            return this;
+        }
+
+        /**
          * Sets the name of the front-end DPE. Use this if the orchestrator is not
          * running in the same node as the front-end, or if the orchestrator is
          * not using the proper network interface or port for the DPE.
@@ -284,6 +300,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         private static final String ARG_FRONTEND = "frontEnd";
         private static final String ARG_THREADS = "nThreads";
         private static final String ARG_FREQUENCY = "frequency";
+        private static final String ARG_SKIP_EVENTS = "skip";
+        private static final String ARG_MAX_EVENTS = "max";
         private static final String ARG_SERVICES_FILE = "servicesFile";
         private static final String ARG_INPUT_FILE = "inputFile";
         private static final String ARG_OUTPUT_FILE = "outputFile";
@@ -323,12 +341,20 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
             List<DpeInfo> recNodes = new ArrayList<DpeInfo>();
             recNodes.add(ReconstructionConfigParser.getDefaultDpeInfo("localhost"));
 
-            Builder builder = new Builder(servicesConfig, inFile);
-            return builder.withOutputFile(outFile)
-                          .withFrontEnd(frontEnd)
-                          .withThreads(nc)
-                          .withReportFrequency(reportFreq)
-                          .build();
+            Builder builder = new Builder(servicesConfig, inFile)
+                    .withOutputFile(outFile)
+                    .withFrontEnd(frontEnd)
+                    .withThreads(nc)
+                    .withReportFrequency(reportFreq);
+
+            if (config.contains(ARG_SKIP_EVENTS)) {
+                builder.withSkipEvents(config.getInt(ARG_SKIP_EVENTS));
+            }
+            if (config.contains(ARG_MAX_EVENTS)) {
+                builder.withMaxEvents(config.getInt(ARG_MAX_EVENTS));
+            }
+
+            return builder.build();
         }
 
         private DpeName parseFrontEnd() {
@@ -364,6 +390,18 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                     .setRequired(false);
             reportFreq.setHelp("The report frequency of processed events.");
 
+            FlaggedOption skipEvents = new FlaggedOption(ARG_SKIP_EVENTS)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('k')
+                    .setRequired(false);
+            skipEvents.setHelp("The amount of events to skip at the beginning.");
+
+            FlaggedOption maxEvents = new FlaggedOption(ARG_MAX_EVENTS)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('e')
+                    .setRequired(false);
+            maxEvents.setHelp("The maximum number of events to process.");
+
             UnflaggedOption servicesFile = new UnflaggedOption(ARG_SERVICES_FILE)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(true);
@@ -383,6 +421,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
                 jsap.registerParameter(frontEnd);
                 jsap.registerParameter(nThreads);
                 jsap.registerParameter(reportFreq);
+                jsap.registerParameter(skipEvents);
+                jsap.registerParameter(maxEvents);
                 jsap.registerParameter(servicesFile);
                 jsap.registerParameter(inputFile);
                 jsap.registerParameter(outputFile);

@@ -42,6 +42,9 @@ class ReconstructionNode {
     AtomicInteger currentFileCounter = new AtomicInteger();
     AtomicInteger totalFilesCounter = new AtomicInteger();
 
+    AtomicInteger skipEvents = new AtomicInteger();
+    AtomicInteger maxEvents = new AtomicInteger();
+
     AtomicInteger totalEvents = new AtomicInteger();
     AtomicInteger eventNumber = new AtomicInteger();
     AtomicLong startTime = new AtomicLong();
@@ -204,10 +207,19 @@ class ReconstructionNode {
     }
 
 
+    void setEventLimits(int skipEvents, int maxEvents) {
+        this.skipEvents.set(skipEvents);
+        this.maxEvents.set(maxEvents);
+    }
+
+
     void openFiles() {
         startTime.set(0);
         eventNumber.set(0);
         totalEvents.set(0);
+
+        int skipEv = skipEvents.get();
+        int maxEv = maxEvents.get();
 
         // open input file
         try {
@@ -215,13 +227,23 @@ class ReconstructionNode {
             JSONObject inputConfig = new JSONObject();
             inputConfig.put("action", "open");
             inputConfig.put("file", currentInputFile);
+            if (skipEv > 0) {
+                inputConfig.put("skip", skipEv);
+            }
+            if (maxEv > 0) {
+                inputConfig.put("max", maxEv);
+            }
             orchestrator.syncConfig(readerName, inputConfig, 5, TimeUnit.MINUTES);
         } catch (ClaraException | TimeoutException e) {
             throw new OrchestratorError("Could not open input file", e);
         }
 
         // total number of events in the file
-        totalEvents.set(requestNumberOfEvents());
+        int numEv = requestNumberOfEvents() - skipEv;
+        if (maxEv > 0 && maxEv < numEv) {
+            numEv = maxEv;
+        }
+        totalEvents.set(numEv);
 
         // endiannes of the file
         String fileOrder = requestFileOrder();

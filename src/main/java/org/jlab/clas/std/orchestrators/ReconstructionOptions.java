@@ -9,9 +9,13 @@ final class ReconstructionOptions {
     final boolean useFrontEnd;
     final boolean stageFiles;
     final boolean bulkStage;
+
     final int poolSize;
     final int maxNodes;
     final int maxThreads;
+
+    final int skipEvents;
+    final int maxEvents;
     final int reportFreq;
 
 
@@ -25,9 +29,13 @@ final class ReconstructionOptions {
         private boolean useFrontEnd = false;
         private boolean stageFiles = false;
         private boolean bulkStage = false;
+
         private int poolSize = DEFAULT_POOLSIZE;
         private int maxNodes = MAX_NODES;
         private int maxThreads = MAX_THREADS;
+
+        private int skipEvents = 0;
+        private int maxEvents = 0;
         private int reportFreq = 0;
 
         Builder useFrontEnd() {
@@ -69,6 +77,22 @@ final class ReconstructionOptions {
             return this;
         }
 
+        Builder withSkipEvents(int skipEvents) {
+            if (skipEvents < 0) {
+                throw new IllegalArgumentException("Invalid skip events value: " + skipEvents);
+            }
+            this.skipEvents = skipEvents;
+            return this;
+        }
+
+        Builder withMaxEvents(int maxEvents) {
+            if (maxEvents < 0) {
+                throw new IllegalArgumentException("Invalid max events value: " + maxEvents);
+            }
+            this.maxEvents = maxEvents;
+            return this;
+        }
+
         Builder withReportFrequency(int reportFreq) {
             if (reportFreq <= 0) {
                 throw new IllegalArgumentException("Invalid report frequency: " + reportFreq);
@@ -90,6 +114,8 @@ final class ReconstructionOptions {
         this.poolSize = builder.poolSize;
         this.maxNodes = builder.maxNodes;
         this.maxThreads = builder.maxThreads;
+        this.skipEvents = builder.skipEvents;
+        this.maxEvents = builder.maxEvents;
         this.reportFreq = builder.reportFreq;
     }
 }

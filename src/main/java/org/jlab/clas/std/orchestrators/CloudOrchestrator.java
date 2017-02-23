@@ -199,6 +199,22 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         }
 
         /**
+         * Sets the number of events to skip.
+         */
+        public Builder withSkipEvents(int skip) {
+            options.withSkipEvents(skip);
+            return this;
+        }
+
+        /**
+         * Sets the maximum number of events to read.
+         */
+        public Builder withMaxEvents(int max) {
+            options.withMaxEvents(max);
+            return this;
+        }
+
+        /**
          * Changes the path of the shared input directory.
          * This directory should contain all input files.
          */
@@ -366,6 +382,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
         private static final String ARG_POOL_SIZE     = "poolSize";
         private static final String ARG_MAX_NODES     = "maxNodes";
         private static final String ARG_MAX_THREADS   = "maxThreads";
+        private static final String ARG_SKIP_EVENTS   = "skipEv";
+        private static final String ARG_MAX_EVENTS    = "maxEv";
         private static final String ARG_SERVICES_FILE = "servicesFile";
         private static final String ARG_INPUT_FILES   = "inputFiles";
 
@@ -414,6 +432,12 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
             }
             if (config.getBoolean(ARG_BULK_STAGE)) {
                 options.bulkStage();
+            }
+            if (config.contains(ARG_SKIP_EVENTS)) {
+                options.withSkipEvents(config.getInt(ARG_SKIP_EVENTS));
+            }
+            if (config.contains(ARG_MAX_EVENTS)) {
+                options.withMaxEvents(config.getInt(ARG_MAX_EVENTS));
             }
 
             ReconstructionConfigParser parser = new ReconstructionConfigParser(services);
@@ -520,6 +544,18 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                     .setRequired(false);
             maxThreads.setHelp("The maximum number of reconstruction threads to be used per node.");
 
+            FlaggedOption skipEvents = new FlaggedOption(ARG_SKIP_EVENTS)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('k')
+                    .setRequired(false);
+            skipEvents.setHelp("The amount of events to skip at the beginning.");
+
+            FlaggedOption maxEvents = new FlaggedOption(ARG_MAX_EVENTS)
+                    .setStringParser(JSAP.INTEGER_PARSER)
+                    .setShortFlag('e')
+                    .setRequired(false);
+            maxEvents.setHelp("The maximum number of events to process.");
+
             UnflaggedOption servicesFile = new UnflaggedOption(ARG_SERVICES_FILE)
                     .setStringParser(JSAP.STRING_PARSER)
                     .setRequired(true);
@@ -543,6 +579,8 @@ public final class CloudOrchestrator extends AbstractOrchestrator {
                 jsap.registerParameter(poolSize);
                 jsap.registerParameter(maxNodes);
                 jsap.registerParameter(maxThreads);
+                jsap.registerParameter(skipEvents);
+                jsap.registerParameter(maxEvents);
                 jsap.registerParameter(servicesFile);
                 jsap.registerParameter(inputFiles);
             } catch (JSAPException e) {

@@ -281,6 +281,8 @@ abstract class AbstractOrchestrator {
                 new Thread(new FileSavingWorker(), "file-saving-thread").start();
             }
 
+            node.setEventLimits(options.skipEvents, options.maxEvents);
+
             freeNodes.add(node);
             stats.add(node);
         } catch (OrchestratorError e) {
