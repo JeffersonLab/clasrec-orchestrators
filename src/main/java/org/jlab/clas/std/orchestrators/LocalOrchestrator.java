@@ -209,8 +209,8 @@ public final class LocalOrchestrator extends AbstractOrchestrator {
         System.out.println("- Start time   = " + ClaraUtil.getCurrentTime());
         System.out.println("- Threads      = " + options.maxThreads);
         System.out.println();
-        System.out.println("- Input file   = " + paths.inputDir);
-        System.out.println("- Output file  = " + paths.outputDir);
+        System.out.println("- Input file   = " + paths.inputFilePath(paths.allFiles.get(0)));
+        System.out.println("- Output file  = " + paths.outputFilePath(paths.allFiles.get(0)));
         System.out.println("****************************************");
     }
 
