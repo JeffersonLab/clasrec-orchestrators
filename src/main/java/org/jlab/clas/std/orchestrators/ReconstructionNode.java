@@ -199,7 +199,7 @@ class ReconstructionNode {
             }
             return true;
         } catch (ClaraException | TimeoutException e) {
-            throw new OrchestratorError("Could not save output", e);
+            throw new OrchestratorError("Could not remove stage directory", e);
         }
     }
 
