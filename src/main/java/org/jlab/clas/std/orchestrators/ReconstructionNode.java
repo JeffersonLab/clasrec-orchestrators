@@ -24,7 +24,7 @@ import org.json.JSONObject;
 
 class ReconstructionNode {
 
-    private static final String NO_NAME = "";
+    private static final String NO_NAME = "undefined";
 
     private final ReconstructionOrchestrator orchestrator;
     private final ReconstructionApplication application;
