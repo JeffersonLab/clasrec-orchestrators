@@ -121,7 +121,6 @@ def deploySpec = copySpec {
     }
 
     into ('plugins/clas12/config') {
-        from ('config/services.yaml')
         from ('config/files.list')
     }
 
