@@ -13,12 +13,12 @@ class ReconstructionPaths {
     static final String CACHE_DIR = "/mss/hallb/exp/raw";
     static final String INPUT_DIR = DATA_DIR + File.separator + "in";
     static final String OUTPUT_DIR = DATA_DIR + File.separator + "out";
-    static final String STAGE_DIR = File.separator + "scratch";
+//    static final String STAGE_DIR = File.separator + "scratch";
+    static final String STAGE_DIR = System.getenv("WORK_DIR");
 
     final String inputDir;
     final String outputDir;
     final String stageDir;
-
     final List<ReconstructionFile> allFiles;
 
     ReconstructionPaths(String inputFile, String outputFile) {
