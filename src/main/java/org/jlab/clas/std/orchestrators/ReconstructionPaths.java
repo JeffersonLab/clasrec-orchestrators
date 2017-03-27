@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 class ReconstructionPaths {
@@ -14,7 +15,7 @@ class ReconstructionPaths {
     static final String INPUT_DIR = DATA_DIR + File.separator + "in";
     static final String OUTPUT_DIR = DATA_DIR + File.separator + "out";
 //    static final String STAGE_DIR = File.separator + "scratch";
-    static final String STAGE_DIR = System.getenv("WORK_DIR");
+    static final String STAGE_DIR = Optional.ofNullable(System.getenv("WORK_DIR")).orElse("/scratch");
 
     final String inputDir;
     final String outputDir;
