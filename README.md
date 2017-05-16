@@ -1,5 +1,11 @@
 # clasrec-orchestrators
 
+**This project is DEPRECATED.
+The orchestrators have been merged into CLARA v4.3 standard distribution.**
+
+**Up-to-date information about running CLAS reconstruction
+can be found in https://claraweb.jlab.org.**
+
 CLARA orchestrators to process CLAS12 files in a chain of reconstruction
 services. The chain should be configured with your selected services.
 
